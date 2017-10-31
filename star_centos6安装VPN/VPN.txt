@@ -1,4 +1,3 @@
-
 # modprobe ppp-compress-18 && echo ok
 这条执行执行后，显示“ok”则表明通过。不过接下来还需要做另一个检查，输入指令：
 
