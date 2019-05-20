@@ -7,10 +7,6 @@ if [ ! -d "/opt/setups" ]; then
 	mkdir /opt/setups
 fi
 
-if [ ! -d "/usr/program" ]; then
-	mkdir /usr/program
-fi
-
 echo "下载 redis"
 
 cd /opt/setups
@@ -37,26 +33,24 @@ if [ ! -d "/opt/setups/redis-4.0.6" ]; then
 	exit 1
 fi
 
-mv redis-4.0.6/ /usr/program/
+mv redis-4.0.6/ /usr/local/
 
-cd /usr/program/redis-4.0.6
+cd /usr/local/redis-4.0.6
 
 make
 
 make install
 
-cp /usr/program/redis-4.0.6/redis.conf /etc/
+cp /usr/local/redis-4.0.6/redis.conf /etc/
 
 sed -i 's/daemonize no/daemonize yes/g' /etc/redis.conf
 
 echo "/usr/local/bin/redis-server /etc/redis.conf" >> /etc/rc.local
 
-iptables -I INPUT -p tcp -m tcp --dport 6379 -j ACCEPT
+echo "防火墙放行 6379 端口"
+firewall-cmd --zone=public --add-port=6379/tcp --permanent
+firewall-cmd --reload
 
-service iptables save
-
-service iptables restart
-
-rm -rf /usr/program/redis-4.0.6
+rm -rf /usr/local/redis-4.0.6
 
 echo "安装结束"
