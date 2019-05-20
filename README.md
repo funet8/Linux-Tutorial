@@ -1,23 +1,10 @@
+# 关于项目
+整理日常linux教程
+目录：star
 
-## 团队 DevOps 方案参考
-
-<a target="_blank" href="https://coding.net/?utm_source=judasn">
-<img id="judasn" src="https://upload-images.jianshu.io/upload_images/12159-e3279861ff8655c9.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
-</a>
-
-
-## 初衷(Original Intention)
-
-- 整理下自己所学。**但是比较随意，所以很多地方不够严谨，所以请带着批评的思维阅读。**
-- 带动更多的人进入 Linux 世界，特别是做 Java 开发的人
+# 原作者
 - Github 项目地址，欢迎 `Fork`、`Star`：<https://github.com/judasn/Linux-Tutorial>
-- 文章中用到的一些安装包归纳整理：<http://pan.baidu.com/s/1skAwrFn>
 - Gitbook 在线阅读地址：<https://youmeek.gitbooks.io/linux-tutorial/content/>
-- **学得越多越是明白一个人的力量是不够的，我只是起了一个引子，希望你能一起参与，真心希望！！！（鞠躬）**
-
-## 优秀同行推荐
-
-- [Linux工具快速教程](http://linuxtools-rst.readthedocs.io/zh_CN/latest/base/index.html)
 
 ## 目录(Contents)
 
@@ -142,8 +129,3 @@
 |Judas.n|<http://code.YouMeek.com>|
 |mrdear|<https://github.com/mrdear>|
 |fooofei|<https://github.com/fooofei>|
-
-## AD
-
-- [推荐：程序员的个性化网址导航：GitNavi.com](http://www.gitnavi.com/u/judasn/)
-- [适合后端开发者的前端 React-Admin](https://github.com/satan31415/umi-admin)
