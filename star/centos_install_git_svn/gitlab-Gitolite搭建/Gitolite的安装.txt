@@ -1,0 +1,193 @@
+Gitolite的安装
+
+ 一） 创建帐号
+[root@M1 ~]# lid -g sshd  # 查看某一用户组下所有的用户
+服务端执行：
+[root@M1 ~]# yum -y install perl openssh git # 安装基础包
+[root@M1 ~]# groupadd git
+[root@M1 ~]# useradd -g git -G sshd git
+[root@M1 ~]# passwd git # 为git用户添加一个密码
+
+
+二） 安装Gitolite
+[root@M1 ~]# su -l git
+[git@M1 ~]$ mkdir bin
+[git@M1 ~]$ git clone https://github.com/sitaramc/gitolite.git
+[git@M1 ~]$ ls
+bin  gitolite
+
+[git@M1 ~]$ ./gitolite/install -to /home/git/bin/
+[git@M1 ~]$ cd bin/
+[git@M1 bin]$ ls
+commands  gitolite  gitolite-shell  lib  syntactic-sugar  triggers  VERSION  VREF
+
+ 
+
+
+三） 
+
+[git@M1 bin]$ logout
+这里我制定本地root用户为管理员(admin)(# 系统中的用户名和gitolite中的用户名没必要相同，只要密钥对应就行，我们这里使用root的密钥改名为admin.pub在gitolite中创建admin用户)
+[root@M1 ~]# ssh-keygen -t rsa -f /root/.ssh/id_rsa -P '' # 创建公钥
+[root@M1 ~]# cp .ssh/id_rsa.pub /tmp/admin.pub
+
+切换回git用户，为gitolite配置管理员
+[root@M1 ~]# su -l git
+[git@M1 ~]$ /home/git/bin/gitolite setup -pk /tmp/admin.pub （gitolite中用户由公钥的名称确定，而客户端中的用户和gitolite中的用户是通过密钥对应上，比如系统中test1 使用 test2 的私钥替换自己的私钥，在服务器端则为test2用户）
+Initialized empty Git repository in /home/git/repositories/gitolite-admin.git/
+Initialized empty Git repository in /home/git/repositories/testing.git/
+WARNING: /home/git/.ssh missing; creating a new one
+    (this is normal on a brand new install)
+WARNING: /home/git/.ssh/authorized_keys missing; creating a new one
+    (this is normal on a brand new install)
+[git@M1 ~]$ ls
+bin  gitolite  projects.list  repositories
+
+四） 管理员的日常工作(此时的root用户通过git用户远程只能执行特定的命令)
+1）管理员clone管理库
+[root@M1 ~]# git clone git@192.168.1.106:gitolite-admin
+[root@M1 gitolite-admin]# ls
+conf  keydir
+2) 添加用户，分配权限
+[root@M1 gitolite-admin]# useradd -g git test123  # 创建一个test123普通用户
+test123普通用户创建一个公钥
+[root@M1 gitolite-admin]# su -l test123
+[test123@M1 ~]$ ssh-keygen -t rsa -f /home/test123/.ssh/id_rsa -P ''
+切换回root用户
+[test123@M1 ~]$ logout
+把test123的公钥复制到指定的目录下
+[root@M1 gitolite-admin]# cp /home/test123/.ssh/id_rsa.pub /root/gitolite-admin/keydir/test123.pub
+[root@M1 gitolite-admin]# cp /home/test123/.ssh/id_rsa.pub /tmp/test123.pub
+[root@M1 gitolite-admin]# su -l git
+
+对test123认证
+[git@M1 ~]$ /home/git/bin/gitolite setup -pk /tmp/test123.pub 
+[git@M1 ~]$ logout
+
+[root@M1 gitolite-admin]# cd conf/
+[root@M1 conf]# vi /root/gitolite-admin/conf/gitolite.conf 
+repo gitolite-admin
+    RW+     =   admin
+
+repo testing
+    RW+     =   @all
+@myGroup=admin test123  # 指定用户组有哪些成员
+repo myFirstRepo #  制定特定项目的权限分配
+    RW+  =  @myGroup
+[root@M1 conf]# cd ../
+[root@M1 gitolite-admin]# git status
+[root@M1 gitolite-admin]# git add *
+[root@M1 gitolite-admin]# git commit -m "AddRepo:myFirstRepo;AddUser:test123"
+[root@M1 gitolite-admin]# git push origin 
+master
+
+五）客户验证
+[root@M1 gitolite-admin]# su -l test123
+[test123@M1 ~]$ git clone git@192.168.1.106:myFirstRepo
+Initialized empty Git repository in /home/test123/myFirstRepo/.git/
+warning: You appear to have cloned an empty repository.
+[test123@M1 ~]$ ls
+myFirstRepo
+
+创建一个文件提交测试
+[test123@M1 myFirstRepo]$ touch test.txt
+[test123@M1 myFirstRepo]$ git status -s
+?? test.txt
+[test123@M1 myFirstRepo]$ git add test.sh
+fatal: pathspec 'test.sh' did not match any files
+[test123@M1 myFirstRepo]$ git add test.txt
+[test123@M1 myFirstRepo]$ git status -s
+A  test.txt
+[test123@M1 myFirstRepo]$ git commit -m 'add test.txt'
+[master (root-commit) ad5d619] add test.txt
+ Committer: test123 <test123@M1.(none)>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly:
+
+    git config --global user.name "Your Name"
+    git config --global user.email you@example.com
+
+If the identity used for this commit is wrong, you can fix it with:
+
+    git commit --amend --author='Your Name <'">you@example.com>'
+
+ 0 files changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 test.txt
+[test123@M1 myFirstRepo]$ git status -s
+[test123@M1 myFirstRepo]$ git push origin master
+Counting objects: 3, done.
+Writing objects: 100% (3/3), 206 bytes, done.
+Total 3 (delta 0), reused 0 (delta 0)
+To git@192.168.1.106:myFirstRepo
+ * [new branch]      master -> master
+ 
+ 使用root用户拉取
+ [root@M1 myFirstRepo]# git pull
+remote: Counting objects: 3, done.
+remote: Total 3 (delta 0), reused 0 (delta 0)
+Unpacking objects: 100% (3/3), done.
+From 192.168.1.106:myFirstRepo
+ * [new branch]      master     -> origin/master
+[root@M1 myFirstRepo]# ls  # 可以看到test.txt 文件说明服务搭建成功了
+test.txt
+
+六）SSH非22端口通信
+ 本地或gitolite服务器使用非ssh默认端口，会出现错误，可通过下列方法解决：
+
+    $ vim ~/.ssh/config
+
+添加 如下内容
+
+    host ${ip_of_gitolite_server} 
+    port ${post_of_yours}
+
+
+
+
+
+
+
+客户端指定密钥来连接git服务器
+
+
+
+ 客户端可以通过~/.ssh/config 配置文件来指定用户连接特定的服务器的特定的端口使用特定的配置文件
+如下配置表示：连接github.com www.github.com 服务器使用~/.ssh/code_github私钥；连接bitbucket.org www.bitbucket.org服务器使用~/.ssh/code_bitbucket
+Host github.com www.github.com
+    IdentityFile ~/.ssh/code_github
+Host bitbucket.org www.bitbucket.org
+    IdentityFile ~/.ssh/code_bitbucket
+如果没有匹配上或者没有配置~/.ssh/config文件。默认情况下客户端是使用~/.ssh/id_rsa 密钥
+
+现在我想把test123使用git用户管理版本库和使用git用户登录git服务器的shell环境的密钥区分开
+一） 客户端设置
+我们在客户端配置两套密钥，一套可以通过git用户登录到服务器使用shell；而另一套则不能使用shell只能使用git相关的功能
+1 可以使用shell环境的密钥的创建
+[root@M2 ~]# groupadd git
+[root@M2 ~]# useradd -g git test123
+[root@M2 ~]# su -l test123
+[test123@M2 ~]$ ssh-keygen -t rsa -f /home/test123/.ssh/id_rsa -P ''   # 先创建可以用shell登录的密钥
+[test123@M2 ~]$ ssh-copy-id -i /home/test123/.ssh/id_rsa.pub git@gitserver
+[test123@M2 ~]$ ssh git@192.168.31.2   # 发现客户端用户通过test123默认的密钥可以用git用户登录到gitserver的shell环境
+[git@M1 ~]$ ls
+bin  gitolite  projects.list  repositories
+
+2 git版本库管理的的密钥的创建
+[test123@M2 ~]$ ssh-keygen -t rsa -f /home/test123/.ssh/test123 -P ''
+[test123@M2 ~]$ scp ./.ssh/test123.pub  git@192.168.31.2:/home/git/
+服务器端认证
+[git@M1 ~]$ /home/git/bin/gitolite setup -pk /home/git/test123.pub 
+[git@M1 ~]$ rm -f /home/git/test123.pub 
+
+3 客户端更改配置(这里我在客户端的hosts文件中192.168.31.2 M1 gitserver 把M1 gitserver 指定为192.168.31.2)
+Host gitserver
+User git
+Hostname gitserver
+Port 22
+IdentityFile ~/.ssh/test123
+这样当我们使用 
+[test123@M2 ~]$ git clone git@gitserver:myFirstRepo  使用的就是 ~/.ssh/test123公钥
+而使用
+[test123@M2 myFirstRepo]$ ssh git@M1 或者 ssh git@192.168.31.2 则使用默认的公钥~/.ssh/id_rsa。但是我们使用 ssh git@gitserver 则是使用的 ~/.ssh/test123公钥。客户端是根据Host 和 Port 来判断使用哪个公钥文件 	
+	

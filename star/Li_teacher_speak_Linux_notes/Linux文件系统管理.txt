@@ -1,0 +1,225 @@
+*************课程大纲**********************
+文件系统构成
+设备挂载
+分区与格式化原理
+磁盘配额
+
+
+*************文件系统构成**********************
+
+/user/bin 、 /bin		【存放错有用户可以执行的命令】
+/user/sbin 、 /sbin		【存放只有root才可以执行的命令】
+/home					【用户缺省宿主目录】
+/proc					【虚拟文件设备，存放当前内存镜像】
+/dev					【存放设备文件】
+/lib 					【存放系统程序运行所需的共享库】
+/lost+found 			【存放一些系统出错的检查结果】
+
+/tmp  					【存放临时文件，每个用户都有写权限，只有】
+/etc					【系统配置文件】
+/var					【包含进程发生变动的文件，如邮件、日志文件、计划任务】
+/user 					【存放所有命令、库、手册页等】
+/mnt					【存放文件系统的安装点】
+/boot					【内核文件及自举程序文件保存位置】
+		
+		
+*************常用命令**********************
+
+df				【查看分区情况】
+du				【查看文件、目录大小】
+fsck  e2fsck	【检测修复文件系统】	
+file			【判断文件类型】
+
+du -h /etc/services
+du -sh /etc			【查看目录大小】
+
+file system check fsck  
+e2fsck
+fsck -y		修复系统
+
+
+
+
+*************使用光驱**********************
+
+#mount /dev/cdrom 	/mnt/cdrom	
+#df
+#cd /mnt/cdrom
+#ls /mnt/cdrom
+
+卸载光驱两种
+#umount /mnt/cdrom	
+或者	
+#eject
+
+
+*************添加硬盘或分区**********************
+
+fdisk    	【划分分区】
+mkfs		【创建文件系统】
+mount		【尝试挂载】
+/etc/fstab	【写入配置文件】
+
+dMesg |grep sdb			【查看硬盘是否被识别】
+
+
+fdisk -l
+fdisk /dev/sdb*			【划分sdb*分区】
+
+m 获取帮助
+p 显示分区表
+n 添加新分区
+t 改变分区文件类型
+d 删除分区
+w 保存退出
+q 不保存退出
+
+创建文件系统 
+mkfs 	【格式化】
+
+mkfs.ext3 /dev/sdb1
+
+添加磁盘或分区
+mkdir /mnt/test
+mount /dev/hda6 /mnt/test
+touch /mnt/test/testfile
+ls /mnt/test
+
+*************/etc/fstab 代表的含义：**********************
+
+/dev/mapper/VolGroup-lv_root /                       ext4    defaults        1 1
+proc                    /proc                   proc    defaults        0 0
+
+1.物理分区名/卷标			
+2.挂载点					
+3.文件系统 
+4.缺省设置		
+5.是否在引导做检测【0不检测，1检测】 
+6.检测顺序【0：不检测，1：优先检测，2其次检测】
+
+
+*************SwapFile实现**********************
+
+dd if=/dev/sda of=/dev/sdb	【将/dev/dsa硬盘上的数据完全拷贝到/dev/sdb上】
+
+dd if=/dev/zero
+
+1.#mkdir /var/swap
+  #chmod 700 /var/swap
+2.#dd if=/dev/zero of=/var/swap/file.swp bs=1024 count=65536    【创建一个文件大小1024x64=65536】  
+3.#mkswap /var/swap/file.swp
+4.#vi /etc/fstab
+	  /var/swap/file.swp swap swap  defaults 0 0
+5.free 
+6.swapon /var/swap/file.swp 
+7.free
+
+
+*************设置磁盘配额**********************
+为什么要做磁盘配额？ 针对分区操作。
+
+需求：在/test 下权限为777 ，每个用户只能使用50M大小
+
+1.开启分区配额功能
+编辑/etc/fstab 文件，在挂载属性加上标志usrquota(用户配额)或grpquota(用户组配额)
+
+/dev/sda3 /home ext3 defaults,usrquota 1 2 
+mount -o remount /home
+临时设置：mount -o remount,usrquota /home
+
+2.建立配额数据库（进入单用户模式）
+quotacheck -cvuga		【c：创建， v：显示创建信息，u用户配额，g组配额，a：检测所有分区】
+在/test会生成aquota.user 和 aquota.group两个文件
+
+3.启动配额功能
+quotaon <分区名称>    【启动配额功能】
+quotaon /test
+quotaoff 【关闭配额】
+
+4.编辑用户配额
+edquota 用户名	edquota -g 用户组名
+edquota -t 设置宽限期
+限定用户文件大小
+软限制和硬限制 【软限制：警告，硬限制：不能继续操作】
+改硬限制 50M * 1024 
+
+复制用户配额
+edquota -p 模板用户 复制用户1 复制用户2
+edquota -p helen  user1 user2 user3
+
+quota    【查看用户配额使用情况】
+repquota -a 【管理员查看用户配额】
+
+
+*************系统的潜在威胁**********************
+系统硬件故障
+软件故障
+电源故障
+用户的误操作
+人为破坏
+缓存中的内容没有及时写入磁盘
+自然灾害
+
+*************备份介质选择**********************
+硬盘
+光盘
+磁带
+可移动设备
+可靠、速度和介质价格
+
+系统备份
+ 1.实现对操作系统和应用程序的备份
+ 2.尽量在系统崩溃以后快速简单地恢复系统的运行
+ 3.主要备份/etc  /boot   /var/log  /usr/local 等
+ 4.一般只有当系统内容发生变化时才进行
+
+用户备份
+  1.实现对用户文件的备份 /home
+  2.用户的数据变动频繁
+  3.通常采用增量备份策略进行
+
+  
+*************备份日志表格规范**********************
+
+机器名称，ip地址、存放位置
+备份时间
+备份介质及其编号
+备份的文件系统
+备份的目录和文件
+使用的备份命令
+备份人员及其他
+
+
+*************备份流程**********************
+1.备份
+2.备份分区 	ro umount
+3.压缩		bzip2
+4.校验 		md5sum -c
+5.加密 GnuPG     PGP  非对称密钥加密（公钥和私钥）
+
+*************cp命令备份举例**********************
+
+备份目录
+ cp -Rpu <备份目录> <目标目录>
+	-p  【保持备份目录及文件属性】
+	-u	【增量备份】
+
+远程备份可用scp
+
+
+*************tar命令备份举例**********************
+#tar -zcf /backup/etc_20150819.tar.gz /etc	【备份/etc目录，同时打包多个目录】
+#tar -zcf backup_user_20150819.tar.gz /etc/passwd /etc/shadow /etc/group /etc/gshadow 【指定文件进行备份】
+#tar -ztf backup_user_20150819.tar.gz	【查看备份包中文件，不解包】
+ tar -ztf user.tar.gz |grep passwd   恢复某一个文件
+ 
+#tar -zxf /backup/etc_20150819.tar.gz 【还原/etc目录，默认还原到打包原目录】
+-C可以指定还原目录
+#tar -zxf backup_user_20150819.tar.gz etc/group	【只恢复备份中指定文件，tar包里面显示/etc就写/etc 】
+
+#tar -rf backup/etc_20150819.tar /etc/defaults/useradd /etc/login.defs 【将/etc/defaults/useradd、/etc/login.defs的内容追加到.tar里】
+#tar -uf backup/etc_20150819.tar /etc/passwd 	【将/etc/passwd目录中修改过的内容追击大到备份文件中】
+   -r和-u选项只能针对tar包使用。
+
+#tar -zcf /backup/etc_$(data +%F).tar.gz /etc	【为备份文件添加时间】
+#tar -zcf /backup/etc_$(data +%Y%m%d-%H%m).tar.gz /etc   【添加年月日】

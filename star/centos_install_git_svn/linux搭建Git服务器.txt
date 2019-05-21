@@ -1,0 +1,102 @@
+系统版本：centos6.x
+测试IP:192.168.1.247
+ssh端口不是22，比如是2221下如何搭建git。
+
+第1步：安装git并且创建git用户
+# yum install git
+# useradd git
+# passwd git	[使用git密码拉取项目，如果不设置密码则使用密钥]
+
+第2步：创建证书登录(此步骤没有操作)：
+收集所有需要登录的用户的公钥，就是他们自己的id_rsa.pub文件，把所有公钥导入到/home/git/.ssh/authorized_keys文件里，一行一个。
+
+
+第3步：创建git仓库。
+先选定一个目录作为Git仓库，假定是/home/gitxm/sample.git，在/home/gitxm目录下输入命令：
+
+# mkdir -p /home/gitxm/
+# cd /home/gitxm/
+# git init --bare /home/gitxm/sample.git
+Initialized empty Git repository in /home/gitxm/sample.git/
+
+# chown git.git -R /home/gitxm/
+
+出于安全考虑，第二步创建的git用户不允许登录shell，找到类似下面的一行：
+
+#vi /etc/passwd
+#git:x:1001:1001:,,,:/home/git:/bin/bash
+改为：
+git:x:1001:1001:,,,:/home/git:/usr/bin/git-shell
+
+现在，可以通过git clone命令克隆远程仓库了，在各自的电脑上运行：
+
+
+使用windows中的git软件
+git@192.168.1.247:/home/gitxm/sample.git
+
+如果服务器的ssh端口改为其他，比如2221
+使用git或者root用户拉取：
+ssh://git@192.168.1.247:2221/home/gitxm/sample.git
+ssh://root@192.168.1.247:2221/home/gitxm/sample.git
+
+ssh://root@115.28.168.69:60920/data/gitxm/funet8_com.git
+
+
+
+使用git config --list查看已设配置
+
+Git常用命令
+
+git log 【历史记录】	
+[root@localhost sample.git]# git log
+commit 7240642edefcf0e433168caf0058386363d92892
+Author: test <test@163.com>
+Date:   Thu Sep 22 17:37:43 2016 +0800
+
+    2222ssss
+
+commit ba466f211fde7f9830d7f986c6302ad1d8051daf
+Author: test <test@163.com>
+Date:   Thu Sep 22 17:36:58 2016 +0800
+
+    2222aaaa
+。。。。	
+
+[root@localhost sample.git]# git log --pretty=oneline
+7240642edefcf0e433168caf0058386363d92892 2222ssss
+ba466f211fde7f9830d7f986c6302ad1d8051daf 2222aaaa
+16c1c7a63328c3d8e3dad262d7f45314f9dd46c2 11111
+dbd9ae353f096408cb4b1cf0dd25d0c281ac2f2b 4444
+1f3fcdee1af7db98e892750d1eb01ba513cacdf2 333333
+67d22504268559ac8387169d77ae06647304d578 11111
+7d515ff1a632b9df00cb603b1ba281e35e434293 ssssffff11111
+f6b761b1e27b55a37a69a4db1de173aea22aad2d test11111
+
+
+git reset --hard 7240642edefcf0e433168caf0058386363d92892
+
+遇到问题：
+[root@localhost sample.git]# git status
+fatal: This operation must be run in a work tree
+
+解决：
+http://tanglei528.blog.163.com/blog/static/43353399201302355758482
+由于git init –bare 方法创建一个裸仓库，在该仓库无法进行任何git操作，所以抛出错误.
+
+解决方法：在该仓库目录下，新建文件夹，进入该文件夹，执行如下命令：
+1. touch Readme
+2. git init
+3. git add Readme
+4. git commit -m 'initial commit' Readme
+
+
+
+Git 官网学习地址:
+http://blog.csdn.net/love_android_2011/article/details/12102967
+
+Git常用命令：
+http://www.cnblogs.com/cspku/articles/Git_cmds.html
+
+
+
+

@@ -1,10 +1,34 @@
 # 关于项目
 整理日常linux教程
 目录：star
+## 环境说明
+本教程主要环境在
+Centos6或者Centos7下安装
 
-# 原作者
+## 目录(Contents)
+- [Centos安装swoole](star/centos_install_swoole/centos_install_swoole.md)
+- [Centos安装postfix-邮件服务器](star/centos_install_postfix/centos_install_postfix.md)
+- [Centos安装postfix-git_svn版本控制软件](star/centos_install_git_svn/centos_install_git_svn.md)
+- [李明老师讲Linux笔记](star/Li_teacher_speak_Linux_notes/Li_teacher_speak_Linux_notes.md)
+- [判断虚拟机使用的是openvz、xen、kvm](star/use_openvz_xen_kvm/use_openvz_xen_kvm.md)
+- [Linux服务器配置SSH免密码登陆](star/SSH_no_password/SSH_no_password.md)
+- [centos-mail发送邮件](star/centos_install_postfix/Centos_sendmail.md)
+- [centos-samba局域网共享](star/centos_samba/readme.md)
+- [GoAccess-nginx日志分析工具](star/GoAccess_ngin_log/readme.md)
+- [Linux内核TCP参数优化设置](star/Linux_kernel/readme.md)
+- [parted分区-分区超过2T的硬盘](star/Parted_partition_2T/readme.md)
+- [vi基本操作](star/vi/readme.md)
+- [Centos安装memcached](star/centos_install_memcached/readme.md)
+- [使用iptables来实现SNAT转发，可以让无公网IP的服务器与公网通信](star/iptables_snat/readme.md)
+
+
+SSH_no_password
+
+
+# 原作者-judasn
 - Github 项目地址，欢迎 `Fork`、`Star`：<https://github.com/judasn/Linux-Tutorial>
 - Gitbook 在线阅读地址：<https://youmeek.gitbooks.io/linux-tutorial/content/>
+- star 在此基础上
 
 ## 目录(Contents)
 

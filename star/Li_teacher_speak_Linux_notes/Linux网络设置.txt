@@ -1,0 +1,127 @@
+*************课程大纲**********************
+互联网寻址过程
+Linux网络管理配置文件及命令
+
+TCP/IP与OSI七层标准的比较
+
+HTTP、FTP、SMTP								  应用层				
+SNMP、POP、TELNET	<--------------	 应用层	  表示层
+RIP、NNTP等									  会话层	
+
+								  				
+TCP、UDP			<--------------	 传输层	  传输层 
+								  	
+IP、ICMP、IGMP
+ARP、RARP等			<--------------	 网络层	   网络层 	
+
+Ethernet、ATM、FDDI							   数据链路层	
+X.25、ISDN			<--------------  物理层    物理层
+
+
+TCP/IP物理层：网卡	
+OSI物理层：网卡
+   数据链路层：MAC
+
+*************互联网的计算机寻址**********************
+	    ARP
+   <-----------			  Hosts、DNS、NIS
+MAC	----------->  IP  <------------------->  FQHN（完整的计算机名称）
+       RARP
+
+MAC地址。
+数据链路层：
+00:0C:29:D4:B4:C7
+
+前24位厂商标识，网卡标识
+
+DOS 拒绝服务攻击 SYNFLOOD
+
+
+TCP 【可靠，三次握手，断电重发，定时器（速度降低）】  全双工
+UDP	【速度快，可靠性低，（QQ，视频网站等）】
+
+
+全双工/单工/半双工
+
+
+www.funet8.com.
+主机名 二级域 顶级域 根域
+
+ARP 地址解析协议
+arp -a			【查看arp缓存表地址】
+arp -d <ip地址>	【删除arp记录】
+arp -s <ip地址>	【添加arp静态记录】
+
+
+/etc/hosts
+IP地址 主机名或者域名 别名
+
+NIS 服务：network information system   【文件的集中管理】
+文件集中管理大家共享服务。被淘汰。
+
+DNS		domain name system 		【域名系统】
+BIND	[域名解析软件]
+
+客户端 --->www.funet8.com		【查询过程】
+1.本机DNS服务器
+有缓存（广义缓存）
+2.根域  .
+-->去问“.com”服务器
+3.funet8.com这个服务器
+返回DNS服务器-->客户端
+
+1个MAC地址可以对应多个ip地址。所有的操作系统都可以实现。
+
+1个ip地址可以对应多个MAC地址。
+cluster【集群】
+
+一个域名可以对应多个ip地址。【根据用户ip范围切换到不同的服务器ip】
+
+一个ip可以对应多个域名。
+
+#ifconfig eth0 192.168.1.2
+#vi  /etc/sysconfig/network-scripts/ifcfg-eth0
+IPADDR=<新的ip地址>
+GATEWAY=192.168.1.1			【指定网关】
+BROADCAST=192.168.1.255		【广播地址】
+
+#vi /etc/sysconfig/network
+HOSTNAME=localhost.localdomain	【改变主机名】
+
+/etc/rc.d/init.d/network start/stop/restart	【启动、停止、重启网卡】
+service network restart
+
+/etc/services		【所有的网络信息】
+
+服务号  端口/协议   别名
+systat          11/tcp          users
+systat          11/udp          users
+
+#vi /etc/resolv.conf		【指定DNS服务器地址，小于等于三个】
+
+nameserver 114.114.114.114
+nameserver 8.8.8.8
+
+
+*************常用命令**********************
+ifconfig	【查看网络端口设置】
+	ifconfig eth0 down/up
+	
+ethtool		【检测网络连接】
+	ethtool eth0
+arp			【查看ARP表信息】
+	arp -a
+	
+ping		【探测远程主机】
+	ping -c 3 -s 1000 192.168.1.1
+	
+route		【操作路由表】
+	
+traceroute	【查看路由路径】
+	traceroute www.funet8.com
+netstat		【监控网络状态】
+	netstat -an
+	netstat -tunpl
+
+
+

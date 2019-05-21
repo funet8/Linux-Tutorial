@@ -1,0 +1,136 @@
+*************课程大纲**********************
+Windows与Linux文件共享-samba
+FTP应用-vsftp
+
+*************samba简介**********************
+在unix系统中，samba是通过服务器消息块协议（SMB）在网络上的计算机之间共享文件和打印服务的软件包。
+
+启动服务： /etc/rc.d/init.d/smb start
+samba两个守护进程：
+smbd	【监听139端口，TCP端口】  负责用户验证和文件共享
+nmbd	【监听137和138端口 UDP端口】	负责处理浏览共享和计算机名称解析
+
+检测是否安装samba
+rpm -qa | grep samba
+安装samba
+yum -y install samba samba-client
+
+
+
+
+
+*************samba配置**********************
+配置文件
+samba设置格式：
+[段名]
+设置项=值
+
+“#”		注释文字，解释。
+“；”	分号注释，设置选项（不用或者是默认值）
+
+包括四个设置段：
+[global]		全局环境选项
+[homes]			设置用户宿主目录共享
+[printers]		设置共享打印机
+[sharefiles]	设置文件共享
+
+*************[global] 段主要选项设置**********************
+workgroup = 	【指定工作组或域】
+server string = 	【描述】
+security = 			【指定安全模式】
+	share无权限设置
+	user 缺省，推荐由linux samba服务器做验证  
+	server 第三方主机验证
+	domain 第三方主机验证（第三方必须是windows域控制器）
+hosts allow = 		【指定主机访问（允许优先）】
+	1.那些主机可以访问 hosts allow或者 hosts deny
+	2.那些用户可以访问
+	
+log file = 			【指定日志文件存放位置】
+max log size = 		【指定日志文件大小】
+
+
+*************[homes] 段主要选项设置**********************
+comment = Home Directories 	【描述】
+browseable = no			【无限性共享目录隐藏】
+writable = yes 			【no只读，yes可写】
+
+*************windows客户端范文自己的宿主目录**********************
+防火墙是否开启
+Netfilter/Iptables		#iptables -F
+SELinux
+	关闭SElinux
+	#setsebool -p samba_enable_home_dirs on
+	gesebool -a | grep samba
+	vi /etc/selinux/config      改为“SELINUX=disabled”	
+ 用户必须是系统用户，不能是虚拟用户。
+ 设置samba验证密码。
+ 
+1.安装samba，不需要对配置文件做修改
+ smbpasswd -a <用户名>
+ service smb restart
+ 
+ windows客户端访问samba服务器共享资源：
+ 开始-》运行-》输入“\\服务器地址”
+ 
+samba服务器端查看访问的客户端信息：
+smbstatus
+日志文件：
+/var/log/samba/
+ 
+在windows命令行下“net us”
+关闭 “net use * /delete /y”
+
+
+*************Samba配置**********************
+Samba应用实例二：
+设置Samba共享目录/software，允许用户jack和mary可以通过windows客户端访问，并且具有读写权限。
+1.创建目录/software，添加用户jack和mary
+2.如果安装SELinux，执行命令启动用户可以访问系统目录。
+
+chcon -t samba_share_t
+3.在samba配置文件 /etc/samba/smb.conf 末尾添加：
+[software]
+path = /software
+valid users = jack mary
+writable = yes
+
+smbpasswd -a jack
+smbpasswd -a mary
+service smb restart
+
+1)samba是否授予写权限
+2）用户在linux系统中是否对共享目录有写权限。
+
+授予权限
+#groupadd softadmin
+#gpasswd -a jack softadmin
+#gpasswd -a mary softadmin
+#chgrp softadmin /software
+#chmod g+w /software
+
+检测samba语法错误。
+# testparm
+
+
+Samba应用实例三：
+建立一个公共的只读目录/pubic，所有的人可以浏览目录的内容。
+[pubic]
+comment = Read Only Pubic
+path = /pubic
+writable = no
+
+Samba应用实例四：
+建立部门资料共享目录 /hr，部门每个人都能读写，单不能删除别人的文件。
+[hr]
+path = /hr
+valid users = zhangsan lisi wangwu
+writable = yes
+
+#chmod 1777 /hr  
+
+t位 粘作位
+操作对象:目录的权限是777
+作用:在一个公共的文件夹内自己只能删除自己的东西
+chmod o+t /tmp
+chmod 1777 /tmp 

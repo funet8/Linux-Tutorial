@@ -1,0 +1,453 @@
+*************课程大纲**********************
+shell编程语法
+shell脚本调试
+shell应用实例
+
+*************一个简单的shell脚本**********************
+shell结构
+1.#!指定执行脚本的shell
+2.#注释行
+3.命令和控制结构
+
+创建shell程序步骤
+第一步：创建一个包含命令
+第二步：修改这个文件的权限
+		使用chmod u+x
+第三步：执行 ./example.sh 或者 sh example.sh
+		sh +x example.sh 	【显示脚本执行的过程】
+
+#!/bin/sh
+#自动发送系统信息
+/bin/date +%F >> /tmp/sysinfo
+echo "disk info:" >> /tmp/sysinfo
+/bin/df -h >> /tmp/sysinfo
+echo >> /tmp/sysinfo
+echo "online user:" >> /tmp/sysinfo
+/user/bin/who | /bin/grep -v root >> /tmp/sysinfo
+echo >> /tmp/sysinfo
+echo "memory info:" >> /tmp/sysinfo
+/user/bin/free -m >> /tmp/sysinfo
+echo >> /tmp/sysinfo
+
+#write root
+/user/bin/write root < /tmp/sysinfo && /bin/rm /tmp/sysinfo
+
+#crontab -e
+#0 9 * * 1-5 script
+
+
+*************shell变量**********************
+变量：shell传递数据的一种方法，用来代表每个取值的符号名。
+临时变量和永久变量。
+
+[root@bogon ~]# echo $PATH
+/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin
+[root@bogon ~]# echo $LANG
+en_US.UTF-8
+[root@bogon ~]# echo $SHELL
+/bin/bash
+[root@bogon ~]# echo $PS1
+[\u@\h \W]\$
+
+用户自定义变量：
+字母或下划线开头，由字母、数字下划线组成，区分大小写，长度无限制。
+使用变量是需要加$
+
+NUM=100
+echo $NUM
+
+单引号和双引号的区别
+#$ABC='$NAME junior'
+#echo $ABC
+ 结果：$NAME junior
+单引号之间的内容原封不动地指定给了变量。
+#unset NAME 	【删除变量】
+
+位置变量和特殊变量
+
+Shell解释执行用户时，将命令行的第一个部分作为命令，其他部分作为参数。由出现在命令行上的位置确定的参数称为位置参数
+例如：
+ls -l file1 file2 file3
+$0 这个程序的文件名 ls -l 
+$n 这个程序的第n个参数值， n=1-9
+
+#!/bin/sh
+#自动备份
+DATE ='/bin/date +%Y%m%d'
+/bin/tar -cf /backup/$1.$DATE.tar $1 > /dev/null 2>> /backup/$1.bak.log
+/bin/gzip /backup/$1.$DATE.tar
+if[ $? -eq 0]
+then
+		echo "$1 $DATE backup successfully">>/backup/$1.bak.log
+else
+		echo "ERROR:failure $1 $DATE backup!">>/backup/$1.bak.log
+fi
+#crontab -e
+#0 3 * * 2,5 script		
+
+
+*************shell特殊变量**********************
+
+$*	【这个程序的所有参数】
+$#	【这个程序的参数个数】
+$$ 	【这个程序的PID】	
+$!	【执行上一个后台命令的PID】
+$?	【执行上一个命令的返回值】0：成功 、非0：不成功
+
+*************shell命令**********************
+read命令
+	从键盘读入数据，赋给变量
+	read USERNAME	
+	
+expr命令
+	对整数型变量进行算术运算 【中间有空格】
+例如：
+	expr 3 + 5
+	expr $var1 - 5
+	expr $var1 / $var2
+	expr $var3 \* 10
+	
+复杂的expr命令
+expr 'expr 5 + 7'/$var4
+	
+
+*************变量测试语句**********************	
+
+用于测试变量是否相等，是否为空，文件类型等。
+格式：
+		test 测试条件
+
+测试范围：整形，字符串，文件
+
+字符串测试
+test str1=str2	【字符串是否相等】
+test str1!=str2	【字符串是否不相等】
+test str1		【字符串是否不为空】
+test -n str1	【字符串是否不为空】
+test -z str1	【字符串是否不为空】	
+	
+整数测试：
+test int1 -eq int2	【测试整数是否相等】
+test int1 -ge int2	【测试int1是否>=int2】	
+		  -gt		大于
+		  -gt		小于
+		  -le		小于等于
+		  -lt		小于
+		  -ne		不相等
+
+文件测试：
+test -d file	【是否为目录】
+test -f file	【文件是否为常规文件】
+test -x file	是否可执行
+test -r file	是否可读
+test -w file	是否可写
+test -a file	是否存在
+test -s file 	大小是否为0	  
+
+test语句结合if语句
+
+if test -d $1 then
+	...
+fi	
+
+简写：
+test -d $1 等价于 [-d $1]
+
+判断Apache是否启动:
+web ='/usr/bin/pgrep httpd'
+if ["$web" != ""]
+then 
+	echo "the web service is running "
+else
+   echo "the web service is NOT running"
+   /etc/rc.d/init.d/httpd start
+fi   
+
+流控制语句
+if then
+
+if/else
+
+
+if 条件1 then
+	命令
+elif 条件2 then
+	命令2
+else
+   命令3
+fi   
+
+多个条件联合
+-a 【逻辑与，都成立则为真】
+-o 【逻辑或，一个成立为真】
+
+退出语句
+exit语句：退出程序执行，并且返回一个返回码，0返回码表示正常退出，非0表示非正常退出。
+
+例如：exit 0
+
+
+#!/bin/sh
+if [ $# -ne 2 ];then
+	echo "not enough parameters"
+	exit 0
+fi	
+if [ $1 -eq $2 ];then
+	echo "$1 equals $2 =="
+elif [ $1 -lt $2 ]; then
+	echo "$1 littler than $2 <"
+elif [ $1 -gt $2 ];then
+	echo "$1 greater than $2 >"
+fi	
+
+运行
+[root@vm_web1 ~]# sh  test.dayuxiaoyu 2 4
+2 littler than 4 <
+
+*************for...done循环语句**********************	
+
+格式 for 变量 in 名字表
+	 do 
+		命令表
+	 done	
+
+例：
+#!/bin/sh
+for DAY in sunday monday tuesday wednesday thursday friday saturday
+do 
+	echo "the day is : $DAY"
+done	
+
+删除用户登录：
+#!/bin/sh
+#kill user logined user
+username="$1"
+/bin/ps aux | /bin/grep $username | /bin/awk '{ print $2 }'> /tmp/temp.pid
+killid='cat /tmp/temp.pid'
+for PID in $killid
+do
+        /bin/kill -9 $PID 2>/dev/null
+done
+
+
+*************awk -F 命令应用**********************	
+awk -F 域分隔符 “命令”  ，提取相关的内容
+
+示例：
+1.检测系统中UID为0的用户
+	awk -F:'$3==0 {print $1}'/etc/passwd
+2.检测系统中密码为空的用户
+	awk -F:'length($2)==0 {print $1}'/etc/shadow
+
+grep ^root:x /etc/passwd
+
+*************select...in循环语句**********************	
+select 把关键字中的每一项做成类似表单，以交互的方式执行do和done之间的命令 
+
+select 变量 in 关键字
+do 
+ command 1
+	... ...
+ command n
+done 
+
+示例
+#!/bin.sh
+echo "what is your favourite OS?"
+
+select var in "Linux" "UNIX" "windows" "Other"
+do
+	break
+done
+echo "you have select $var"	
+
+*************case...csac循环语句**********************	
+
+case..csac语句，格式：
+
+	case 变量 in
+	  字符串1) 命令列表1
+			;;		
+	...
+	字符串n) 命令列表n
+			;;
+	esac
+
+示例：
+#!/bin/sh
+echo "*************************"
+echo "please select your operation"
+echo "press C to copy"
+echo "press D to delete"
+echo "press B to backup"
+echo "*************************"
+read op
+case $op in
+        C)
+          echo "your selection is copy"
+        ;;
+        D)
+          echo "your selection is delete"
+        ;;
+        B)
+          echo "your selection is backup"
+        ;;
+        *)
+          echo "invalide selection"
+esac
+
+*************while语句**********************	
+如果条件执行，一直执行 【加break停止】
+while语句，格式：
+
+	while 条件
+	do
+		命令
+	done	
+	
+示例1：
+#!/bin/sh
+while [ -d /etc ]
+do
+	ls -ld /etc
+done
+
+示例2：
+#!/bin/sh
+num=1
+while [ $num -le 10 ]
+do 
+	SUM='expr $num \* $num'
+	echo $SUM
+	sum='expr $sum + 1'
+done	
+
+
+添加用户并且授予密码
+useradd shedon
+echo 123456 | passwd --stdin shedon
+
+
+批量添加用户shell脚本
+#!/bin/sh
+echo "please input username:"
+read name
+echo "please input number:"
+read num
+n=1
+while [ $n -le $num ]
+do
+	/usr/sbin/useradd $name$n
+	n='expr $n + 1'
+done
+
+#/etc/shadow info
+echo "please input the password:"
+read passwd
+m=1
+while [ $m -le $num ]
+do
+	echo $passwd | /usr/bin/passwd --stdin $name$n
+	m='expr $m + 1'
+done	
+
+
+*************until语句**********************	
+until 条件
+do
+	命令
+done	
+
+【until类似while循环，不同的是until是条件返回值为假时才继续执行】
+
+	
+#!/bin/sh
+
+until [ -x /etc/inittab ]
+do 
+	/bin/ls -l /etc/inittab
+	exit 0
+done	
+	
+	
+*************流控制语句**********************		
+跳出循环 break和continue
+break		【跳出整个循环】
+continue	【跳出本次循环，进行下次循环】
+
+实例：
+#!/bin/sh
+echo "*************************"
+echo "please select your operation"
+echo "press C to copy"
+echo "press D to delete"
+echo "press B to backup"
+echo "*************************"
+read op
+case $op in
+        C)
+          echo "your selection is copy"
+        ;;
+        D)
+          echo "your selection is delete"
+        ;;
+        B)
+          echo "your selection is backup"
+        ;;
+        *)
+          echo "invalide selection"
+esac
+
+shift指令： 参数左移，每执行一次，参数序列顺序左移一个位置，$#的值减1，用于分别处理每个参数，移出去不再可用。
+
+实例：
+#!/bin/sh
+if [ $# -le 0]
+then
+	echo "not enough parameters"
+	exit 0
+fi
+sum=0
+while [ $# -gt 0 ]
+do 
+	sum ='expr $sum + $1'
+	shift
+done
+echo $sum
+	
+*************函数应用**********************	
+函数的定义：
+	函数名(){
+		命令序列
+	}
+	
+函数的调用：不带()
+函数名 参数1 参数2  ...
+
+
+*************shell脚本调试**********************	
+
+sh -x script.sh		【执行脚本并显示所有变量】
+
+sh -n script.sh		【检测脚本语法是否有错误】
+
+
+让普通用户可以执行sh脚本
+1.对脚本有r权限。
+2.对脚本所在目录有rx权限。
+否则无法执行这个脚本。
+
+
+*************知识点总结**********************
+掌握shell编程的基本语法
+掌握结合系统命令编写应用脚本
+掌握shell编程调试命令
+
+
+
+
+
+
+		
+
+

@@ -1,0 +1,144 @@
+官方参考文档：
+https://about.gitlab.com/downloads/#centos6
+gitlab包RPM官方下载：
+https://packages.gitlab.com/gitlab/gitlab-ce
+我选择gitlab-ce-8.2.2-ce.0.el6.x86_64.rpm，可以把下载地址放到迅雷里下载，再传到服务器上
+
+系统环境：centos6.5
+IP地址：192.168.1.243
+内存：至少为1G，之前虚拟机的内存只有512M，安装的时候一直报错，日了Dog了。 
+
+安装成功时候把内存改为512M，提示：Whoops, GitLab is taking too much time to respond.
+
+[root@localhost ~]# yum install -y curl openssh-server postftix cronie wget
+[root@localhost ~]# yum install -y postfix
+[root@localhost ~]# service postfix restart
+[root@localhost ~]# chkconfig postfix on
+[root@localhost ~]# lokkit -s http -s ssh
+[root@localhost ~]# wget https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh
+[root@localhost ~]# sh script.rpm.sh 
+
+[root@localhost ~]# rz 【上传gitlab-ce-8.2.2-ce.0.el6.x86_64.rpm】
+[root@localhost ~]# yum install -y gitlab-ce-8.2.2-ce.0.el6.x86_64.rpm 
+[root@localhost ~]# gitlab-ctl reconfigure
+
+访问：
+http://192.168.1.243/
+
+初始密码：
+Username: root 
+Password: 5iveL!fe
+
+修改初始密码。
+
+就可以使用gitlab的后台创建项目和用户。
+
+
+
+vi /opt/gitlab/embedded/service/gitlab-rails/config/gitlab.yml
+
+
+
+
+
+**********************2016-3-29添加***********************************************************
+
+vi /opt/gitlab/embedded/service/gitlab-rails/config/gitlab.yml
+GitLab安装后修改IP/域名
+cd /opt/gitlab-7.14.3-0/apps/gitlab/htdocs/config/
+vi gitlab.yml
+
+  gitlab:
+    ## Web server settings
+    host: git.zhts.cc
+    port: 80
+    https: false
+
+	
+2.将gitlab节点下的host改成对应的ip/域名
+
+重启服务,就可以了.
+
+
+
+ 更改配置后，执行如下命令（加载配置生效）：
+sudo gitlab-ctl reconfigure
+
+服务打开、关闭、重启：
+gitlab-ctl start
+
+gitlab-ctl stop
+
+gitlab-ctl restart
+
+
+
+
+
+gitlab的备份与恢复
+
+gitlab-ctl start
+
+/var/opt/gitlab/							【gitlab所有的工程目录都在】
+
+/var/opt/gitlab/git-data/repositories	    【版本库文件】
+  
+/var/opt/gitlab/backups					    【默认备份目录，修改此目录】
+  
+
+	
+[root@localhost ~]# mkdir /home/git_bak	
+[root@localhost ~]# chown git:root -R /home/git_bak/
+
+
+vi /opt/gitlab/embedded/service/gitlab-rails/config/gitlab.yml
+  ## Backup settings
+  backup:
+    path: "/var/opt/gitlab/backups" 
+改为：
+  ## Backup settings
+  backup:
+    path: "/home/git_bak"
+
+有的版本/etc/gitlab/gitlab.rb
+	
+
+[root@localhost ~]# gitlab-ctl restart		【重启】
+
+[root@localhost ~]# /opt/gitlab/bin/gitlab-rake gitlab:backup:create	【备份git】
+
+
+恢复备份方法：
+[root@localhost backups]# gitlab-ctl stop unicorn
+[root@localhost backups]# gitlab-ctl stop sidekiq
+
+[root@localhost backups]# gitlab-rake gitlab:backup:restore BACKUP=1459415571	【恢复备份】
+Unpacking backup ... 
+
+[root@localhost backups]# gitlab-ctl start
+
+Gitlab迁移
+
+把备份文件拷贝到gitlab的备份目录下，根据上面gitlab恢复步骤即可。	
+
+gitlab定时自动备份
+[root@localhost backups]# vi /etc/crontab
+0 2 * * * /opt/gitlab/bin/gitlab-rake gitlab:backup:create	【每天两点执行备份】
+
+0 4 * * * /bin/cp -p /home/git_bak/* /home/git_bakall/		【将备份文件复制一个到git_bakall文件夹中】
+
+[root@localhost backups]# service crond restart
+
+参考地址： http://www.ithao123.cn/content-10080199.html
+
+
+
+
+
+
+
+
+
+
+
+  

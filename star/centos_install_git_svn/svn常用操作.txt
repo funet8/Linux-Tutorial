@@ -1,0 +1,146 @@
+svn常用操作
+
+本文是在svn环境已经搭建好的情况下编写的
+
+
+1 创建新的仓库
+
+svnadmin create /data/wwwroot/svn/yumao_test  (由于原svn的仓库路径是在/data/wwwroot/svn/) 这里我沿用原来的路径
+
+
+
+
+2 配置仓库
+
+[root@quwenjiemi ~]# vi /data/conf/svn/authz.conf 
+
+########（1）添加了两个用户组专门用来测试svn环境和学习，并且指定当前用户组包含的成员
+
+# 测试学习svn分组
+
+yumao_test = yumao,liangchengzong
+
+# 测试学习svn分组
+
+yumaotest = yumaotest
+
+########（2） 给予当前用户组相应的权限
+
+[yumao_test:/]
+
+@yumao_test = rw
+
+@yumaotest = rw
+
+* =
+
+3 新建用户  （由于之前已经新建了yumao,liangchengzong 这里只新建yumaotest）
+
+[root@quwenjiemi ~]# cd /data/conf/svn/
+
+[root@quwenjiemi svn]# htpasswd passwd.conf yumaotest 
+
+
+
+
+4 更改文件夹权限
+
+由于之前我们是使用root创建的yumao_test这一仓库 所以我们在使用windows客户端提交代码的时候会出现：
+
+svn Can't open file '/data/wwwroot/svn/yumao_test/db/txn-current-lock': Permission denied 
+
+这一错误
+
+解决方法就是使yumao_test 项目下文件的用户所有者为svn 服务所有者相同  这里是www
+
+[root@quwenjiemi svn] cd /data/wwwroot/svn
+
+[root@quwenjiemi svn] chown -R www:www yumao_test
+
+
+
+
+5 客户端拉取和提交项目进行测试
+
+通过svn Checkout 我们填写路径http://zhts.cc:8081/svn/yumao_test 检出项目  （这里我使用的是yumao这一用户）
+
+我们在项目下创建 aa bb 两个目录进行提交 svn commit
+
+
+
+
+6 如果我想让 yumaotest 用户组有对aa目录的写入权限,没有对 bb目录的写入权限
+
+配置如下
+
+[yumao_test:/]
+
+@yumao_test = rw
+
+@yumaotest = rw
+
+* =
+
+[yumao_test:/bb]  # 注意bb后面不要加/
+
+@yumao_test = rw
+
+@yumaotest =
+
+* =
+
+这样yumaotest这一用户对bb这一目录就没有了权限
+
+
+
+
+7  svn 密码清除
+
+右键TortoiseSVN -> Settings -> Saved Data-> Authentication Data 点“Clear”。这样，重新访问配置库的时候，就会提示输入用户民和密码了。
+
+ 这可以解决访问不同的地址，用户名/密码不同的问题。
+
+ 
+
+8 svn 中数据热备份
+
+[root@quwenjiemi svn]# svnadmin hotcopy /data/wwwroot/svn/yumao_test /data/wwwroot/svn/yumao_test2  可以实现对版本库yumao_test 备份复制到yumao_test2 文件夹
+
+
+
+
+9 svn 中数据恢复
+
+[root@quwenjiemi svn]# svnadmin create /data/wwwroot/svn/yumao_test3  （创建yumao_test3）
+
+[root@quwenjiemi svn]# /bin/cp -a  /data/wwwroot/svn/yumao_test2/*  /data/wwwroot/svn/yumao_test3/ （直接用yumao_test2 中的内容覆盖就行）
+
+
+
+
+10 svn 分支与合并
+
+我们先清除版本库中的相关信息
+
+我们创建文件夹 cc/1.html 里面内容  15:37
+
+(待研究)
+
+
+
+
+11 svn 数据回滚
+
+ (1) 整个版本库回滚 （如branchtest1） (现在版本为 huigun2)
+
+	 右键 -》 show log  -> 弹出框中选中branchtest1 -》右键 -> 选择revert to this revision
+
+	 恢复到刚刚那一版本则可以使用 右键 -》 show log  -> huigun2 -》右键 -> 选择revert to this revision
+
+ (2) 单一文件数据回滚
+
+	 可以单独选中某一文件执行相同的操作
+
+12 svn 取消当前做的修改
+
+	 选中相应的文件 右键 -》 revert。。。 就行

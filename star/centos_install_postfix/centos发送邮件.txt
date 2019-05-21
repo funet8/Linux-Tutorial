@@ -1,0 +1,48 @@
+#  yum install mailx -y
+#  rpm -qa|grep mail
+
+# yum -y install sendmail
+# /etc/init.d/sendmail username3t
+# chkconfig sendmail on
+
+1.标题为"test"内容为空的邮件，容易被邮箱服务判为垃圾邮件。
+mail -s "test" username2@163.com
+
+
+2.以文件为内容作为邮件正文：
+echo "222222222" > /root/mail1
+mail -s test username2@163.com < /root/mail1 
+mail -s test2 username1@163.com,username3@163.com < /root/mail1 
+
+3.使用管道进行邮件发送
+echo "hello,username3...." | mail -s "hello" username3@163.com
+
+4.发送附件
+在linux下使用mail命令发送附件也很简单，不过首先需要安装uuencode软件包，这个程序是对二进制文件进行编码使其适合通过邮件进行发送，直接使用centos的yum源可能找不到uuencode命令的包sharutils，我这里使用了网易Yum源。
+
+# yum -y install sharutils
+
+# uuencode /root/mail1 | mail -s "fujian" star@7477.com < /etc/passwd		
+【测试会卡住不动，可以收到邮件，但是附件文件被狗吃了？】
+
+
+5、使用外部smtp(qq的SMTP)来发送邮件
+
+# vi /etc/mail.rc          #文末添加以下
+set from=username1@163.com smtp=smtp.163.com
+set smtp-auth-user=username1@163.com smtp-auth-password=password smtp-auth=login
+
+# source /etc/mail.rc	【本人测试，不需要这步即可】
+# mail -s "51cto" username3@163.com < /etc/passwd
+ 
+
+from：发送的邮件地址，对方显示的发件人
+smtp：发生的外部smtp服务器的地址
+smtp-auth-user：外部smtp服务器认证的用户名
+smtp-auth-password：外部smtp服务器认证的用户密码
+smtp-auth：邮件认证的方式
+
+
+
+http://www.centoscn.com/CentOS/help/2015/1121/6438.html
+

@@ -1,0 +1,60 @@
+*************NFS服务器配置*******************
+NFS-Network File System
+用于UNIX/Linux系统间通过网络进行文件共享，用户可以吧网络中NFS服务器提供的共享目录挂载到本地文件目录中，可以象对本地文件系统一样操作NFS文件系统中内容。
+
+*************安装和启动NFS*******************
+#rpm -q portmap
+#rpm -qa | grep nfs		【查看系统是否安装NFS】
+
+#service portmap start
+#service nfs start		【portmap一定要优先于NFS启动】
+
+若没有则安装nfs包
+#yum install nfs-utils
+
+service rpcbind start 【6.0的系统里，portmap已经改名了。】
+[root@bogon ~]# service nfs start
+Starting NFS services:  [  OK  ]
+Starting NFS mountd: [  OK  ]
+Starting NFS daemon: [  OK  ]
+Starting RPC idmapd: [  OK  ]
+
+检查RPC程序是否启动
+由于NFS是通过RPC（Remote Procedure Call：远程过程调用）协议来使用远程计算机上的文件，因此系统中的RPC服务器必须启动。
+#rpcinfo -p
+
+*************设置共享目录*******************
+
+设置NFS服务器共享目录 /etc/exports
+格式：共享目录 运行访问主机（权限）
+
+实例：
+/pubic 
+允许所有主机访问/pubic
+
+/website 192.168.16.128(ro)
+允许192.168.16.128只读权限访问/website
+
+exportfs 重新输出共享目录格式：exportfs -rv
+
+showmount -e <NFS服务器地址>		【查看NFS服务器共享目录】
+#showmount -e 192.168.1.222
+
+挂载
+#mkdir /mnt/website
+#mount 192.168.1.222:/website /mnt/website	【将nfs服务器的共享目录，挂载到挂载点】
+#df -h
+#umount /mnt/website
+
+安全性不高，建议在局域网中使用
+
+开机时自动挂载NFS共享
+vi /etc/fstab
+NFS共享目录 本机挂载点 文件系统 权限 是否检测 检测顺序
+
+实例：
+192.168.1.222:/pubic /mnt/pubic nfs ro 0 0
+
+
+
+
