@@ -1,0 +1,270 @@
+linux下安装nagios监控服务器-第3步.nagios配置监控远程服务器
+本文分三篇文章来讲
+1.nagios的安装
+2.nagios配置监控本地localhost
+3.nagios配置监控远程
+4.nagios配置邮件服务设置预警和其他补充问题
+
+监控服务器： 192.168.1.8	[以下简称M8]
+远程监控机： 192.168.1.2	[以下简称M2]
+
+监控的服务分为公共和私有
+
+公共：如ssh,http,ftp,mysql等。监控本地或远程的公共服务，都可以直接配置
+私有：如load,users,disk usage等。监控本地私有服务直接配置就好，监控远程私有服务，需要服务和被监控端安装nrpe
+
+
+例：监控远程服务器的普通服务（公共服务）。如ssh,http,ftp，mysql等
+
+如：我的被监控端IP为192.168.1.2
+
+
+1.在nagios服务器M8的主配置文件里加上192.168.1.2的主机配置文件
+
+# vim /usr/local/nagios/etc/nagios.cfg
+cfg_file=/usr/local/nagios/etc/objects/192.168.1.2.cfg   #添加此配置
+
+
+2，创建这个192.168.1.2.cfg
+# cd /usr/local/nagios/etc/objects/
+# cp -a localhost.cfg 192.168.1.2.cfg
+
+# vim /usr/local/nagios/etc/objects/192.168.1.2.cfg
+define host{
+        use                     linux-server
+		host_name               192.168.1.2	#主机名，最好/etc/hosts里对应好IP，我这里没有做，就直接写IP
+        alias                   192.168.1.2	#显示到web上的名字
+        address                 192.168.1.2	#实际被监控主机IP
+        }
+define hostgroup{
+        hostgroup_name  remote_linux-servers	#这里我定义了一个新组，不能和localhost.cfg里的组同名，会冲突
+        alias           remote_Linux-Servers
+        members         192.168.1.2
+        }
+#下面是公共服务，这里我只写了四个，你可以自行增加
+define service{
+        use                             local-service  
+        host_name                       192.168.1.2
+        service_description             PING
+        check_command                   check_ping!100.0,20%!500.0,60%
+        }
+
+define service{
+        use                             local-service   
+        host_name                       192.168.1.2
+        service_description             SSH
+        check_command                   check_ssh
+        }
+
+define service{
+        use                             local-service 
+        host_name                       192.168.1.2
+        service_description             HTTP
+        check_command                   check_http
+        }
+
+
+define service{
+        use                             local-service
+        host_name                       192.168.1.2
+        service_description             FTP
+        check_command                   check_ftp!1!3
+        }
+
+
+
+
+验证配置文件，再重启服务
+# /usr/local/nagios/bin/nagios -v /usr/local/nagios/etc/nagios.cfg
+# /etc/init.d/nagios reload
+
+==================================================================
+
+监控远程的私有服务
+方法一:snmp协议
+方法二:nrpe程序包
+
+
+	   192.168.1.8		   			192.168.1.2	
+	   nagios监控端		   			被监控linux
+	   					check_disk
+	check_nrpe   －－－－－－－－－  check_nrpe  check_swap
+		     SSL或非SSL传输	         check_load等
+
+
+
+1，在nagios服务器上安装nrpe插件
+
+# tar xf nrpe-2.12.tar.gz -C /usr/src/
+# cd /usr/src/nrpe-2.12/
+# ./configure && make && make install
+
+--安装完后，就有下面的命令工具了
+/usr/local/nagios/libexec/check_nrpe
+
+
+
+2，增加check_nrpe命令到commands.conf文件里
+# vim /usr/local/nagios/etc/objects/commands.cfg 
+
+define command{
+        command_name    check_nrpe
+        command_line    $USER1$/check_nrpe -H $HOSTADDRESS$ -c $ARG1$		--c参数后接command， 也就说check_nrpe可以调用别的check命令
+        }
+
+
+
+3，在nagios服务器上对192.168.1.2的配置文件增加远程私有服务
+
+# vim /usr/local/nagios/etc/objects/192.168.1.2.cfg 
+
+define service{
+        use                             local-service 
+        host_name                       192.168.1.2
+        service_description             Root Partition
+        check_command                   check_nrpe!check_remote_root	
+--check_remote_root就是check_nrpe的C参数要调用的命令，此命令在nagios服务器上的commands.cfg里是不存在，它会在后面的步骤中加到被监控端
+        }
+
+
+define service{
+        use                             local-service
+        host_name                       192.168.1.2
+        service_description             Current Users
+        check_command                   check_nrpe!check_remote_users
+        }
+
+
+define service{
+        use                             local-service
+        host_name                       192.168.1.2
+        service_description             Total Processes
+        check_command                   check_nrpe!check_remote_total_procs
+        }
+
+
+define service{
+        use                             local-service
+        host_name                       192.168.1.2
+        service_description             Current Load
+        check_command                   check_nrpe!check_remote_load
+        }
+
+
+define service{
+        use                             local-service
+        host_name                       192.168.1.2
+        service_description             Swap Usage
+        check_command                   check_nrpe!check_remote_swap
+        }
+
+
+
+# /usr/local/nagios/bin/nagios -v /usr/local/nagios/etc/nagios.cfg
+--检查一下配置文件正确性，OK的话则配置端配置完毕，先不reload nagios服务，等被监控端配置完后再reload
+
+
+
+==============================================================
+
+
+现在在被监控端192.168.1.2上安装
+
+1，新建用户
+# useradd nagios
+# groupadd nagiosgroup
+# usermod -G nagiosgroup nagios
+
+
+
+2，安装plugins插件，包含了数据采集命令脚本
+# tar xf nagios-plugins-2.0.3.tar.gz -C /usr/src/
+# cd /usr/src/nagios-plugins-2.0.3/
+# ./configure --with-nagios-user=nagios --with-nagios-group=nagiosgroup
+# make && make install
+
+
+
+3，安装nrpe
+# tar xf nrpe-2.12.tar.gz -C /usr/src/
+# cd /usr/src/nrpe-2.12/
+# ./configure && make && make install
+
+# make install-plugin	--安装并修改/usr/local/nagios/libexec/check_nrpe的权限,owner,group
+# make install-daemon	--安装并修改/usr/local/nagios/bin/nrpe的权限,owner,group
+# make install-daemon-config	--安装并修改/usr/local/nagios/etc/nrpe.cfg的权限,owner,group
+# make install-xinetd	--安装并修改/etc/xinetd.d/nrpe的权限,owner,group
+
+
+
+
+4,修改nrpe的超级守护进程的配置文件
+
+# vim /etc/xinetd.d/nrpe 
+
+service nrpe
+{
+        flags           = REUSE
+        socket_type     = stream
+        port            = 5666
+        wait            = no
+        user            = nagios
+        group           = nagios
+        server          = /usr/local/nagios/bin/nrpe
+        server_args     = -c /usr/local/nagios/etc/nrpe.cfg --inetd
+        log_on_failure  += USERID
+        disable         = no
+        only_from       = 127.0.0.1 192.168.1.8	--加上nagios服务器的IP，允许它来访问
+}
+
+
+# vim /etc/services		--最后面加一行
+nrpe            5666/tcp        # NRPE
+
+
+
+5，在nrpe配置文件里定义check命令，使nagios服务能调用
+
+# vim /usr/local/nagios/etc/nrpe.cfg
+
+allowed_hosts=127.0.0.1 192.168.1.8
+
+command[check_remote_users]=/usr/local/nagios/libexec/check_users -w 5 -c 10
+command[check_remote_load]=/usr/local/nagios/libexec/check_load -w 15,10,5 -c 30,25,20
+command[check_remote_root]=/usr/local/nagios/libexec/check_disk -w 20% -c 10% -p /dev/sda2     --/dev/sda2是被监控端的根分区，也可以直接就写一个  / 就可以了
+command[check_remote_total_procs]=/usr/local/nagios/libexec/check_procs -w 150 -c 200 
+command[check_remote_swap]=/usr/local/nagios/libexec/check_swap -w 40%% -c 20%% 		--这句默认没有的，但nagios服务器有配置，所以加上这句
+command[check_zombie_procs]=/usr/local/nagios/libexec/check_procs -w 5 -c 10 -s Z		--这个是默认有的，但nagios服务器那边我没有加，所以这个在这里没有用	
+
+# yum install xinetd -y
+
+# /etc/init.d/xinetd restart	--启动超级守护进程
+
+# netstat -ntlup |grep 5666		--有端口被监听了
+tcp        0      0 0.0.0.0:5666                0.0.0.0:*                   LISTEN      22120/xinetd  
+
+设置防火墙：
+/sbin/iptables -I INPUT -p tcp --dport 5666 -j ACCEPT
+/etc/rc.d/init.d/iptables save
+/etc/init.d/iptables restart
+
+
+
+6，在本地或nagios服务器测试
+--在被监控端测试成功
+# /usr/local/nagios/libexec/check_users -w 5 -c 10
+USERS OK - 3 users currently logged in |users=3;5;10;0
+
+
+--在nagios服务器上测试成功
+# /usr/local/nagios/libexec/check_nrpe -H 192.168.1.2 -c check_remote_users
+USERS OK - 3 users currently logged in |users=3;5;10;0
+
+/usr/local/nagios/libexec/check_nrpe -H 192.168.1.2 -p 60920 -c check_remote_users
+遇到问题：CHECK_NRPE: Error - Could not complete SSL handshake.
+pkill nrpe
+
+
+
+7，回到nagios服务器重启服务
+# /etc/init.d/nagios restart

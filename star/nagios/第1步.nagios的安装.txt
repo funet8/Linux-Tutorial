@@ -1,0 +1,120 @@
+linux下安装nagios监控服务器-第1步.nagios的安装
+本文分三篇文章来讲
+1.nagios的安装
+2.nagios配置监控本地localhost
+3.nagios配置监控远程
+4.nagios配置邮件服务设置预警和其他补充问题
+
+服务器监控
+1,收集信息，对监控主机，服务等进行检测。　
+2,图形表现　　　
+3,邮件(短信，微信等)报警
+4,开发接口
+
+开源的监控软件，使用snmp(simple network manage protocol)协议
+
+mrtg
+ntop
+cacti		http://www.cacti.net/
+
+常用的监控软件：nagios，zabbix，Ganglia，centreon，falcon（小米的监控）
+
+监控宝，360监控，阿里云监控等
+
+
+今天做一下nagios安装和配置
+官方地址： www.nagios.org
+
+
+--官档路径
+http://nagios.sourceforge.net/docs/nagioscore/4/en/toc.html
+--或者安装主程序包完全后，会在下面这个目录找到
+# ls /usr/local/nagios/share/docs/
+
+监控大量机器上运行的服务和负载等，带报警功能。
+
+软件下载地址：
+https://yunpan.cn/cMdT4B4xLQHLc  
+访问密码 b13e
+
+nagios-4.0.5.tar.gz           		#主程序包	
+nagios-plugins-2.0.3.tar.gz			#插件包，监控命令包
+nrpe-2.12.tar.gz					#linux客户端私有服务的远程监控包
+
+--注意插件包等和主程序包的版本号不一定要一致
+
+
+
+1，搭建rpm版lamp(源码版lamp也可以，但nginx不行，因为后面nagios的web子配置文件里的语法都是apache的语法)
+# yum install httpd* gd  php*
+
+2,建立用户
+
+# useradd nagios
+# groupadd nagiosgroup
+# usermod -G nagiosgroup nagios
+# usermod -G nagiosgroup apache      --也就是说你的web服务器由哪个用户跑，就把哪个用户也加到这个组
+ 
+
+
+3，安装nagios主程序包
+# tar xf nagios-4.0.5.tar.gz -C /usr/src/
+# cd /usr/src/nagios-4.0.5/
+
+# ./configure --with-nagios-user=nagios --with-nagios-group=nagiosgroup 
+
+# make all		
+
+# make all && make install && make install-init && make install-commandmode && make install-config && make install-webconf && make install-exfoliation && make install-classicui
+
+# make install		--安装主程序，CGI脚本和web网页文件
+# make install-init		--安装服务脚本/etc/init.d/nagios
+# make install-commandmode	--修改一些相应的目录权限
+# make install-config		--安装/usr/local/nagios/etc这个目录（包含配置文件模版）
+# make install-webconf		--安装/etc/httpd/conf.d/nagios.conf子配置文件
+# make install-exfoliation	--安装exfoliation主题（也就是web皮肤和样式），会覆盖其它主题
+# make install-classicui	--安装classicui主题，会覆盖其它主题
+
+
+# ls /usr/local/nagios/
+bin  etc  libexec  sbin  share  var
+
+#libexec目录为空，需要安装插件包才会有很多命令与脚本
+
+
+4,安装nagios插件包 	--包含用于收集数据的程序，命令，脚本等
+# tar xf /root/nagios-plugins-2.0.3.tar.gz -C /usr/src/
+# cd /usr/src/nagios-plugins-2.0.3/
+
+# ./configure --with-nagios-user=nagios --with-nagios-group=nagiosgroup 
+
+# make && make install
+
+
+
+5。创建web界面可访问的验证用户
+/etc/httpd/conf.d/nagios.conf 	##在这个文件里已经配置了nagios的apache验证，所以我们要把用户给创建出来
+
+# htpasswd -c /usr/local/nagios/etc/htpasswd.users nagiosadmin	##这里注意一下，用户名一定要用nagiosadmin，如果你用其它自定义的用户名，可以通过apache的验证，但是查看nagios数据时，会没有权限查看到数据
+New password: 
+Re-type new password: 
+Adding password for user nagiosadmin
+
+
+# /usr/local/nagios/bin/nagios -v /usr/local/nagios/etc/nagios.cfg 
+##检测nagios配置文件正确性
+
+
+
+/etc/init.d/nagios restart
+/etc/init.d/httpd restart
+
+##selinux关闭，否则可能造成图形看不到信息
+
+#添加防火墙规则，或者关闭防火墙
+/sbin/iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+/etc/rc.d/init.d/iptables save
+/etc/init.d/iptables restart
+
+使用浏览器访问:
+访问路径http://IP/nagios

@@ -23,6 +23,7 @@ Centos6或者Centos7下安装
 - [Let's Encrypt免费SSL证书](star/Certbot_certificate/)
 - [《破坏之王》读书笔记](star/read_notes_king_destruction/)
 - [【云栖公开课】网络安全课程-截图](star/read_notes_security_course/)
+- [安装nagios监控服务器](star/nagios/)
 
 
 
