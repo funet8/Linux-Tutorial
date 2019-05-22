@@ -1,0 +1,130 @@
+# wget http://www.hping.org/hping3-20051105.tar.gz
+# tar -zxvf hping3-20051105.tar.gz
+# cd hping3-20051105
+[root@localhost hping3-20051105]# ./configure
+build byteorder.c...
+create byteorder.h...
+./configure: line 81: -: command not found
+==> WARNING: no Tcl header files found!			###################yum -y install tcl tcl-devel
+--------------------------------------
+system type: LINUX
+
+LIBPCAP      : PCAP=-lpcap
+PCAP_INCLUDE : 
+MANPATH      : /usr/local/man
+USE_TCL      : 
+TCL_VER      : 
+TCL_INC      : 
+LIBTCL       : -ltcl -lm -lpthread
+TCLSH        : 
+
+(to modify try configure --help)
+--------------------------------------
+creating Makefile...
+creating dependences...
+In file included from ars.h:20,
+                 from apd.c:19:
+bytesex.h:22:3: error: #error can not find the byte order for this architecture, fix bytesex.h
+In file included from apd.c:19:
+ars.h:190:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:254:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:323:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+In file included from ars.h:20,
+                 from ars.c:24:
+bytesex.h:22:3: error: #error can not find the byte order for this architecture, fix bytesex.h
+In file included from ars.c:24:
+ars.h:190:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:254:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:323:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+In file included from ars.h:20,
+                 from arsglue.c:7:
+bytesex.h:22:3: error: #error can not find the byte order for this architecture, fix bytesex.h
+In file included from arsglue.c:7:
+ars.h:190:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:254:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:323:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+In file included from ars.h:20,
+                 from rapd.c:11:
+bytesex.h:22:3: error: #error can not find the byte order for this architecture, fix bytesex.h
+In file included from rapd.c:11:
+ars.h:190:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:254:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:323:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+In file included from ars.h:20,
+                 from split.c:11:
+bytesex.h:22:3: error: #error can not find the byte order for this architecture, fix bytesex.h
+In file included from split.c:11:
+ars.h:190:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:254:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+ars.h:323:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+now you can try `make'
+
+################################
+出现问题：ars.h:190:2: error: #error "Please, edit Makefile and add -DBYTE_ORDER_(BIG|LITTLE)_ENDIAN"
+解决办法：bytesex.h 在#if     defined(__i386__) \前面添加 #define BYTE_ORDER_LITTLE_ENDIAN
+./configure
+出现问题：bytesex.h:22:3: 错误：#error can not find the byte order for this architecture, fix bytesex.h
+解决方法：在#if     defined(__i386__) \后面添加||defined(__x86_64__)\
+./configure
+没问题了，接着make
+make
+出现问题：libpcap_stuff.c:20:21: 错误：net/bpf.h：没有那个文件或目录
+解决办法：
+查看一下是否安装了libpcap及libpcap-devel
+rpm -qa| grep libpcap
+libpcap-1.0.0-6.20091201git117cb5.el6.x86_64
+libpcap-devel-1.0.0-6.20091201git117cb5.el6.x86_64
+################################
+二者都已安装，那么就无需yum安装了，只需ln -sf /usr/include/pcap-bpf.h /usr/include/net/bpf.h
+[root@localhost hping3-20051105]# make
+gcc -c -O2 -Wall   -DUSE_TCL -g  main.c
+gcc -c -O2 -Wall   -DUSE_TCL -g  getifname.c
+.......
+
+[root@localhost hping3-20051105]# make strip
+-rwxr-xr-x 1 root root 512497 May  5 09:31 ./hping3
+strip hping3
+-rwxr-xr-x 1 root root 137712 May  5 09:31 ./hping3
+[root@localhost hping3-20051105]# make install
+cp -f hping3 /usr/sbin/
+chmod 755 /usr/sbin/hping3
+ln -s /usr/sbin/hping3 /usr/sbin/hping
+ln -s /usr/sbin/hping3 /usr/sbin/hping2
+
+[root@localhost ~]# hping --help
+[root@localhost ~]# hping -v
+hping version 3.0.0-alpha-1 ($Id: release.h,v 1.4 2004/04/09 23:38:56 antirez Exp $)
+This binary is TCL scripting capable
+
+1.正常的ping工具
+# hping3 -1 www.baidu.com
+
+2.类似traceroute工具使用
+# hping3 --traceroute -V -1 www.baidu.com
+# traceroute www.baidu.com
+
+3.端口扫描,将向指定端口发送Syn包(80端口)，本地扫描5050端口
+hping3 -V -S -p 80 -s 5050 www.baidu.com
+
+4.做一个路由跟踪指定端口看你的包被阻塞
+hping3 --traceroute -V -S -p 80 -s 5050 www.baidu.com
+
+5.发送ICMP地址掩码请求类型(17)
+hping3 -c 1 -V -1 -C 17 www.baidu.com
+
+
+端口扫描
+hping3 -I eth0  -S 192.168.1.2 -p 80
+
+
+
+比如对目标机发起大量SYN连接，伪造源地址为192.168.10.99，并使用1000微秒的间隔发送各个SYN包。
+[root@localhost ~]# hping3 -I eth0 -a 192.168.10.99 -S 115.28.168.69 -p 80 -i u1000 
+HPING 115.28.168.69 (eth0 115.28.168.69): S set, 40 headers + 0 data bytes
+
+
+
+
+
+
+
