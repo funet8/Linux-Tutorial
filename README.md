@@ -22,7 +22,7 @@ Centos6或者Centos7下安装
 - [使用iptables来实现SNAT转发，可以让无公网IP的服务器与公网通信](star/iptables_snat/readme.md)
 - [Let's Encrypt免费SSL证书](star/Certbot_certificate/readme.md)
 - [《破坏之王》读书笔记](star/read_notes_king_destruction/readme.md)
-- [【云栖公开课】网络安全课程-截图](star/security_course/)
+- [【云栖公开课】网络安全课程-截图](star/read_notes_security_course/)
 
 
 
