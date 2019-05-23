@@ -1,0 +1,539 @@
+varnish对WEB服务器的反向代理，实现静态文件的加速
+
+官方网站
+www.varnish-cache.org
+
+在本地做3台虚拟机，简单的varnish代理服务器架构：
+
+		  client	192.168.1.x
+			  |
+			  |
+		   192.168.4.25049           
+			 varnish代理		       
+		   192.168.4.250	  
+			  |
+			  |
+		|---------------------| 
+	   web1		             web2		
+  192.168.4.5		       192.168.4.6	
+  
+  
+4.0.3版本的rpm版安装方法:
+软件包路径如下
+下载地址为：
+http://repo.varnish-cache.org/redhat/varnish-4.0/el6/x86_64/varnish/
+http://dl.fedoraproject.org/pub/epel/6Server/x86_64/
+或者在好玩吧百度分享地址中下载：
+http://pan.baidu.com/s/1hs6WguC
+
+软件包主要为下面几个
+jemalloc-3.6.0-1.el6.x86_64.rpm 
+varnish-4.0.3-1.el6.x86_64.rpm
+varnish-libs-4.0.3-1.el6.x86_64.rpm
+varnish-docs-4.0.3-1.el6.x86_64.rpm  
+
+例一：varnish代理一台web服务器
+1.安装顺序
+# rpm -ivh jemalloc-3.6.0-1.el6.x86_64.rpm 
+# rpm -ivh varnish-4.0.3-1.el6.x86_64.rpm varnish-libs-4.0.3-1.el6.x86_64.rpm varnish-docs-4.0.3-1.el6.x86_64.rpm 
+
+2.修改全局配置varnish（rpm版）
+# vi /etc/sysconfig/varnish
+66 VARNISH_LISTEN_PORT=80					--这是listen的端口，默认为6081,我这里改为80（因为我的varnish在这里为最前端)
+69 VARNISH_ADMIN_LISTEN_ADDRESS=127.0.0.1   --管理端口的监听地址，保持默认值
+70 VARNISH_ADMIN_LISTEN_PORT=6082			--管理端口，我这里保持默认值
+
+
+3.配置rpm版本主配置文件
+# vi /etc/varnish/default.vcl	
+
+vcl 4.0;			--4.0.3版本，必须要加这一句指定为4.0版的vcl语法
+
+backend web1 {
+     .host = "192.168.4.5";
+     .port = "80";
+}
+
+#/etc/init.d/varnish start
+
+或者使用命令来启动:# varnishd -f /etc/varnish/default.vcl -a 0.0.0.0:80 -s malloc -T 127.0.0.1:6082
+
+在192.168.4.5服务器中做一个简单http服务。
+# yum install httpd* -y
+# echo "内网web this is 192.168.4.5 index.html" > /var/www/html/index.html
+# echo "this is 192.168.4.5 index.php" > /var/www/html/index.php
+# /etc/init.d/httpd restart
+
+在客户端上测试
+
+[root@localhost ~]# curl -I 192.168.1.249
+HTTP/1.1 200 OK
+Date: Thu, 11 Aug 2016 06:48:43 GMT
+Server: Apache/2.2.15 (Red Hat)
+Last-Modified: Thu, 11 Aug 2016 06:43:00 GMT
+ETag: "406fa-25-539c613ae95b2"
+Content-Length: 37
+Content-Type: text/html; charset=UTF-8
+X-Varnish: 32781 32779
+Age: 94
+Via: 1.1 varnish-v4
+Connection: keep-alive
+在浏览器中192.168.1.249打开，看到的是192.168.4.5的内容
+
+例二：varnish代理后台两个不同域名的web服务器
+
+
+			client	192.168.1.x
+			  |
+			  |
+			192.168.1.249
+			varnish
+		   192.168.4.250
+			  |
+			  |
+		|---------------------|
+	   web1		     		web2
+	 192.168.4.5		  192.168.4.6
+	www.aaa.com		 	  www.bbb.com
+
+1.安装	
+
+2.修改配置文件
+# vim /etc/varnish/default.vcl 
+
+vcl 4.0;
+
+backend web1 {
+     .host = "192.168.4.5";
+     .port = "80";
+}
+backend web2 {
+     .host = "192.168.4.6";
+     .port = "80";
+}
+
+sub vcl_recv {
+if (req.http.host ~ "aaa.com$") {
+        set req.backend_hint = web1;		
+        } else {
+        set req.backend_hint = web2;
+        }
+}
+	
+重启varnish服务
+# /etc/init.d/varnish restart
+
+在客户端绑定hosts
+
+192.168.1.249 www.aaa.com  www.bbb.com
+在浏览器中访问 www.aaa.com  www.bbb.com
+
+
+－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+
+什么是网站数据切分?
+其实也是七层调度
+比如我要把新浪新闻，新浪体育给分开
+
+
+方法1:
+用dns的二级域名(直接dns解析成不同的ip)
+新浪新闻   news.sina.com   新浪国内新闻　news.sina.com/china/  --说明没有用二级域名			 
+			  新浪国际新闻 news.sina.com/world/
+			　新浪国内新闻　china.news.sina.com   --用了二级域名	 
+			  新浪国际新闻  world.news.sina.com
+
+新浪体育　 sports.sina.com  新浪体育nba  sports.sina.com/nba/
+			   新浪体育nba  nba.sports.sina.com   
+
+
+方法2:
+前端使用代理(squid,varnish,apache,nginx,haproxy)
+通过代理软件七层调度来分离
+
+－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+
+例三、实现代理同一个网站内容分割，如www.aaa.com/sports/和www.aaa.com/news/会把请求分发给不同的web服务器
+
+			client	192.168.1.x
+			  |
+			  |
+			192.168.1.249
+			varnish
+			192.168.4.250
+			  |
+			  |
+		|---------------------|
+	      web1		     web2
+	    192.168.4.5		  192.168.4.6
+	www.aaa.com/sports/	www.aaa.com/news/	
+
+ 
+vcl 4.0;
+
+backend web1 {
+     .host = "192.168.4.5";
+     .port = "80";
+}
+backend web2 {
+     .host = "192.168.4.6";
+     .port = "80";
+}
+
+sub vcl_recv {
+if (req.url ~ "^/sports/") {
+        set req.backend_hint = web1;
+        }
+if (req.url ~ "^/news/") {
+        set req.backend_hint = web2;
+        }
+}
+
+
+扩展:上面是实现的url路径的负载分离，可以引出针对文件类型的分离(动静分离）
+
+只需要把
+
+sub vcl_recv {
+if (req.url ~ "\.(txt|html|css|jpg|jpeg|gif)$") {	--在这里写上你想让它访问web1的文件类型就可以
+        set req.backend_hint = web1 ;
+        } else {
+        set req.backend_hint = web2 ;
+        }
+}
+
+
+例四:把www.xxx.com/sports/下的请求，使用rr算法分别调度给web1和web2
+			
+			varnish
+
+	/sports/			/news/
+		
+		
+web1		web2			web3		web4
+
+
+
+
+vcl 4.0;
+
+backend web1 {
+     .host = "192.168.4.5";
+     .port = "80";
+}
+
+backend web2 {
+     .host = "192.168.4.6";
+     .port = "80";
+}
+
+import directors;
+
+sub vcl_init {
+	new rr = directors.round_robin();
+	rr.add_backend(web1);
+	rr.add_backend(web2);
+}
+
+
+sub vcl_recv {
+if (req.url ~ "^/sports/") {
+        set req.backend_hint = rr.backend();
+        }
+if (req.url ~ "^/news/") {
+        set req.backend_hint = web2;
+        }
+}
+
+例五、后台web服务器的健康检查
+
+vcl 4.0;
+
+probe backend_healthcheck {
+	.url = "/test.txt";
+	.timeout = 0.3 s;
+	.window = 5;
+	.threshold = 3;
+	.initial = 3;
+}
+
+
+backend web1 {
+     .host = "192.168.4.5";
+     .port = "80";
+     .probe = backend_healthcheck;	
+}
+
+backend web2 {
+     .host = "192.168.4.6";
+     .port = "80";
+     .probe = backend_healthcheck;
+}
+
+import directors;
+
+sub vcl_init {
+	new rr = directors.round_robin();
+	rr.add_backend(web1);
+	rr.add_backend(web2);
+}
+
+sub vcl_recv {
+if (req.url ~ "^/sports/") {
+        set req.backend_hint = rr.backend();
+        }
+if (req.url ~ "^/news/") {
+        set req.backend_hint = web2;
+        }
+}
+
+
+====================================================================
+
+
+继续讨论varnish配置
+
+
+			       client	客户
+				 |
+				 |
+			      varnish   痁铺　　　缓存对象大小　> 1M
+				 | 	
+				 |
+				web	厂家一   ftp  厂家二
+
+ 
+pass  当vcl_recv调用 pass 函数时，pass将当前请求直接转发到后端服务器。而后续的请求仍然通过varnish处理。
+pipe  而pipe模式则不一样，当vcl_recv判断 需要调用 pipe 函数时，varnish会在客户端和服务器之间建立一条直接的连接 ，之后客户端的所有请求都直接发送给服务器，绕过varnish,不再由varnish检查请求，直到连接断开。
+
+vcl_recv  --> vcl_pipe 
+vcl_recv  --> vcl_pass
+
+vcl_recv  --> lookup (vcl_hash)  -->  vcl_miss --> vcl_fetch(vcl_backend_response) --> vcl_deliver
+vcl_recv  --> lookup (vcl_hash)  -->  vcl_hit  --> vcl_deliver
+
+
+
+
+综合配置实例:
+
+vcl 4.0;
+
+probe backend_healthcheck {
+	.url = "/test.txt";
+	.timeout = 0.3 s;
+	.window = 5;
+	.threshold = 3;
+	.initial = 3;
+}
+
+
+backend web1 {
+     .host = "192.168.4.5";
+     .port = "80";
+     .probe = backend_healthcheck;	
+}
+
+backend web2 {
+     .host = "192.168.4.6";
+     .port = "80";
+     .probe = backend_healthcheck;
+}
+
+import directors;
+
+sub vcl_init {
+	new rr = directors.round_robin();
+	rr.add_backend(web1);
+	rr.add_backend(web2);
+}
+
+acl purgers {
+	"127.0.0.1";
+	"192.168.1.0"/24;
+}
+
+sub vcl_recv {
+     if (req.method != "GET" &&
+	req.method != "HEAD" &&
+	req.method != "PUT" &&
+	req.method != "POST" &&
+	req.method != "TRACE" &&
+	req.method != "OPTIONS" &&
+	req.method != "PATCH" &&
+	req.method != "DELETE") {
+	return (pipe);
+	}
+    if (req.method != "GET" && req.method != "HEAD") {
+	return (pass);
+	}
+
+
+    if (req.url ~ "test.txt") {	
+    return(pass);
+ 	 }
+    if (req.method == "PURGE") {
+    	if (!client.ip ~ purgers) {
+      		return(synth(405,"Method not allowed"));
+    		}
+    	return(hash);
+  	}
+
+  if (req.http.X-Forward-For) {
+    set req.http.X-Forward-For = req.http.X-Forward-For + "," + client.ip;
+  } else {
+    set req.http.X-Forward-For = client.ip;
+  }
+
+
+if (req.http.host  ~ "www.aaa.com") {
+        set req.backend_hint = rr.backend() ;
+        } else {
+          return(synth(404,"error domain name"));
+        }
+}
+
+sub vcl_miss {
+    return(fetch);
+}
+
+
+sub vcl_hit {
+  if (req.method == "PURGE") {  
+    unset req.http.cookie;
+    return(synth(200,"Purged"));
+  }
+}
+
+
+sub vcl_backend_response {
+  if (bereq.url ~ "\.(jpg|jpeg|gif|png)$") {
+    set beresp.ttl = 10s;
+  }
+  if (bereq.url ~ "\.(html|css|js)$") {
+    set beresp.ttl = 20s;
+  }
+  if (beresp.http.Set-Cookie) {
+    return(deliver);
+  }
+}
+
+
+
+sub vcl_deliver {
+  if (obj.hits > 0) {
+    set resp.http.X-Cache = "@_@ HIT from " + server.ip;
+  } else {
+    set resp.http.X-Cache = "@_@ oh,god,MISS";
+  }
+}
+
+
+补充一：
+
+有一个问题：就是后台的web有大量的健康检查日志，如果配置的是每5秒一次检查的话，那么apache每5秒就会有这么一条；
+
+想要清除它的话
+
+# vim /etc/httpd/conf/httpd.conf
+SetEnvIf Request_URI "^/test\.txt$" dontlog	--加上这一句
+CustomLog logs/access_log combined env=!dontlog	--在你希望不记录与test.txt有关的日志后面加上env=!dontlog
+
+/etc/init.d/httpd restart
+
+
+那上面的方法与架构前端是varnish或squid或nginx或haproxy等无关，上面的配置是用的apache本身的参数
+
+
+当然如果你不会这种方法，也可以写一个脚本，定期或者在日志轮转前清除健康检查日志就可以了
+
+
+# vim clear_healtycheck_log.sh
+#!/bin/bash 
+sed -i '/test.txt/d' /var/log/httpd/access_log
+kill -USR1 `cat /var/run/httpd/httpd.pid`
+
+
+补充二:
+
+关于如何让后台的web服务器显示的IP是客户端的真实IP，而不是varnish的内网IP的做法
+
+
+首先在vanrish配置里有下面一段相关配置（在4.0.3版测试时，不要这一段也可以，说明应该默认配置就是这个）
+
+  if (req.http.X-Forward-For) {
+    set req.http.X-Forward-For = req.http.X-Forward-For + "," + client.ip;
+  } else {
+    set req.http.X-Forward-For = client.ip;
+  }
+
+
+
+然后在后面的web服务器里做下面的修改
+# vim /etc/httpd/conf/httpd.conf 
+LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" varnishcombined   --加上这一句，这是表示增加了一个日志格式，这个格式名为varnishcombined
+
+
+CustomLog logs/access_log varnishcombined env=!dontlog  --修改这一句，把原来它使用的combined格式换成varnishcombined格式
+
+
+# /etc/init.d/httpd  restart
+
+然后使用客户端去访问测试，后面apache显示的IP是客户端的真实IP了
+但是这里有一个问题：如果这次访问是第一次访问，日志里才会有；如果是被varnish命中了，则varnish直接返回给客户端了，所以后台的web这里就没有记录了
+
+
+另一个解决方法：
+那就是不使用后面的web的日志，而直接使用varnish的日志
+/etc/init.d/varnishncsa start  --启动varnish日志服务
+
+# cat /var/log/varnish/varnishncsa.log   --日志路径
+
+
+＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+
+
+补充三：
+
+# varnishstat	--查看一些参数指标
+
+
+=============================================================
+
+DNS做lb 　优点:简单方便　　缺点:算法单一,无健康检查,如果要修改，增加，删除A记录，不会立即全网生效（因为dns缓存的原因)
+
+
+架构一:
+		   client1  client2
+			DNS轮循(lvs或nginx)			
+
+
+		squid1		squid2
+		logo.png
+
+		web1		web2
+
+
+架构二:
+
+		    client1  client2
+			DNS轮循(lvs或nginx)
+
+
+		varnish1	varnish2
+		logo.png	
+
+		web1		web2
+
+		
+总结:
+squid架构
+优势:可以squid1缓存MISS时，可以去squid2取缓存(这样可以避免去非常远的web去取，提高效率）
+劣势:单点的缓存效率比varnish差
+
+
+
+varnish架构
+劣势:不能象squid那样MISS去另一台缓存服务器取，只能去web取；但如果在前端配合一些lb软件(如nginx,lvs)，改进调度算法，一样可以提高效率
+优势:单点的缓存效率比squid高,配置更灵活，控制更精细
+

@@ -1,0 +1,177 @@
+squid对WEB服务器的反向代理，实现静态文件的加速
+
+
+1.架构设计： 
+WEB服务器 IP:192.168.4.6 [以下简称M6]
+squid反向代理服务器 IP:192.168.4.5	[以下简称M5]
+
+客户端 IP:192.168.4.250	[以下简称M250]
+
+1、M6中搭建一个简单的web程序
+yum install httpd* -y
+echo "内网web" > /var/www/html/index.html
+/etc/init.d/httpd restart
+
+
+
+2、在M4上安装squid，并进行配置
+yum install squid -y
+
+用一个新的配置文件；如果是在上面的透明代理基础上再做反向代理，先注释掉前面所有的配置
+
+vi /etc/squid/squid.conf
+
+修改一下：
+62 http_port 80 accel vhost vport
+			--accel 反向代理加速模式
+			--vhost 支持域名或主机名来表示代理节点
+			--vport 支持IP和端口来表示代理节点
+
+ cache_peer 192.168.4.6 parent 80 0 no-query originserver name=web
+
+		--192.168.4.6  内网web服务器的IP
+		--parent 上下关系，非平级关系
+		--80 代理内部web服务器的80端口
+		--0 没有使用icp，表示就一台squid服务器
+		--no-query 不去查询邻居，与上面的0结合使用
+		--originserver 表示源实际服务器
+		--name=web 定义一个名字，让后面的参数引用
+
+cache_peer_domain web web.cluster.com   --对web.cluster.com的请求会给web这台服务器（也就是上面定义的192.168.4.6);如果有多台web的话，可以多台web绑定同一个域名，还可以实现RR轮循调度
+cache_peer_domain web 192.168.4.6	--光写上面一条，客户端只能通过web.cluster.com访问，再加上这条，客户端就可以使用192.168.4.6来访问
+
+
+59 http_access allow all
+
+68 cache_dir ufs /var/spool/squid 256 16 256 
+
+
+# iptables -t nat -F
+
+重启服务，注意不要与apache的80端口冲突
+
+
+--测试在客户端中修改hosts：
+
+所以这里客户端的DNS解析web.cluster.com应该得到192.168.4.5的结果，所以这里不做DNS的话，就直接在/etc/hosts里写上
+
+192.168.4.5  web.cluster.com
+
+再使用http://web.cluster.com
+
+可以使用curl -I http://web.cluster.com去查有没有命中缓存
+
+打开ip_forward转发
+# vi /etc/sysctl.conf
+    net.ipv4.ip_forward = 1    #0为关闭，1为开启路由
+# sysctl -p  				   # 使之生效
+
+关闭SELinux【略】
+
+关闭防火墙
+如果需要开启防火墙，需要添加规则。
+
+客户端验证：
+[root@localhost ~]# curl -I http://web.cluster.com/
+HTTP/1.0 200 OK
+Date: Wed, 10 Aug 2016 08:06:51 GMT
+Server: Apache/2.2.15 (Red Hat)
+Last-Modified: Tue, 09 Aug 2016 08:17:30 GMT
+ETag: "a27d1-a-5399f29fa2540"
+Accept-Ranges: bytes
+Content-Length: 10
+Content-Type: text/html; charset=UTF-8
+Age: 806
+X-Cache: HIT from localhost.localdomain
+X-Cache-Lookup: HIT from localhost.localdomain:80
+Via: 1.0 localhost.localdomain (squid/3.1.10)
+Connection: keep-alive
+
+
+
+squid如何代理多个web?
+
+
+
+
+http_port 80 accel vhost vport
+
+cache_peer 192.168.1.128 parent 80 0 no-query originserver round-robin name=web1
+cache_peer 192.168.1.129 parent 80 0 no-query originserver round-robin name=web2
+cache_peer 192.168.1.130 parent 80 0 no-query originserver round-robin name=web3
+cache_peer 192.168.1.131 parent 80 0 no-query originserver round-robin name=web4
+
+cache_peer_domain web1 web2 web.cluster.com
+cache_peer_domain web3 web4 web.abc.com
+
+
+
+
+
+
+问题二:
+如何配置下面的squid集群?
+
+参考
+http://www.ibm.com/developerworks/cn/linux/l-cn-squid
+
+
+			172.16.2.X
+			client	
+
+			www.abc.com
+		    LVS或DNS轮循或智能DNS
+			
+
+
+	   172.16.2.9		  172.16.2.10	
+		squid1		squid2
+	   192.168.1.1		  192.168.1.2
+
+
+		web1		web2
+	   192.168.1.128	  192.168.1.129 
+
+配置过程
+第一步:
+两个web上安装httpd，并建立两个不同主面方便测试(注意这里所有的机器的时间一定要同步，特别是web1和web2；如果web1和web2的时间隔得太久，可能会造成客户端访问时，不先访问缓存而是访问后台web，也就是缓存失效了）
+
+
+过程省略
+
+第二步:
+安装并配置squid1
+# yum install squid -y
+# vim /etc/squid/squid.conf
+59 http_access allow all
+68 cache_dir ufs /var/spool/squid 256 16 256
+62 http_port 80 accel vhost vport
+
+icp_port 3130
+icp_access allow all
+cache_peer 192.168.1.2 sibling 80 3130
+cache_peer 192.168.1.128 parent 80 0 no-query originserver round-robin name=web1
+cache_peer 192.168.1.129 parent 80 0 no-query originserver round-robin name=web2
+cache_peer_domain web1 web2 www.abc.com
+
+# /etc/init.d/squid start
+
+第三步:
+安装并配置squid2
+把squid1的配置文件拷过来，只需要修改一个地方（就是sibling的IP)
+# yum install squid -y
+# vim /etc/squid/squid.conf
+cache_peer 192.168.1.1 sibling 80 3130	 --把这个IP换成对方的IP
+
+然后也启动服务
+# /etc/init.d/squid start
+
+
+第四步:
+在客户端测试
+vim /etc/hosts		--绑定IP地址与域名来模拟DNS（注意这里不能实现DNS轮循,所以手动绑定其中指定解析为squid1或squid2）
+172.16.2.9	www.abc.com
+
+vim /etc/hosts
+172.16.2.10	www.abc.com
+

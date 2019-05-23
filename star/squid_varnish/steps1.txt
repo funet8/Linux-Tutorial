@@ -1,0 +1,275 @@
+1.squid实现局域网的正向透明代理，上网策略
+
+首先看一下网络拓扑图：
+
+需要实现的目的：
+192.168.3.x网段中的电脑可以通过squid192.168.3.250代理服务器上外网。
+192.168.1.x网段中的电脑通过squid192.168.1.250代理服务器上外网。
+并且192.168.3.x和192.168.1.x网段互通。
+
+
+路由器IP：192.168.1.1
+代理服务器IP1：192.168.1.250 
+代理服务器IP2：192.168.3.250
+客户端IP：192.168.1.251
+客户端IP：192.168.3.6
+
+安装前准备：
+1、关闭SELinux
+    vi /etc/selinux/config
+   #SELINUX=enforcing     #注释掉
+   #SELINUXTYPE=targeted  #注释掉
+   SELINUX=disabled  #增加
+   :wq  保存，关闭。
+setenforce 0	【临时关闭（不用重启机器）】   
+
+2、修改主机的路由模式
+# vi /etc/sysctl.conf
+    net.ipv4.ip_forward = 1    #0为关闭，1为开启路由
+# sysctl -p  				   # 使之生效
+echo '1' > /proc/sys/net/ipv4/ip_forward  【开启ip转发，立即生效】
+echo '0' > /proc/sys/net/ipv4/ip_forward  【关闭ip转发，立即生效】
+
+
+
+
+3、设置防火墙端口转发规则
+	代理服务器的ip为
+eth0:192.168.1.250 ---->网关指向路由器（192.168.1.1）DNS指向114.114.114.114。
+eth1:192.168.3.250
+
+[root@localhost ~]# ifconfig | grep addr
+eth0     inet addr:192.168.1.250  Bcast:192.168.1.255  Mask:255.255.255.0
+eth1	 inet addr:192.168.3.250  Bcast:192.168.3.255  Mask:255.255.255.0
+[root@localhost ~]# route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+192.168.3.0     0.0.0.0         255.255.255.0   U     0      0        0 eth1
+192.168.1.0     0.0.0.0         255.255.255.0   U     0      0        0 eth0
+0.0.0.0         192.168.1.1     0.0.0.0         UG    0      0        0 eth0
+[root@localhost ~]# cat /etc/resolv.conf 
+nameserver 114.114.114.114
+[root@localhost ~]# ping www.baidu.com
+PING www.a.shifen.com (14.215.177.37) 56(84) bytes of data.
+64 bytes from 14.215.177.37: icmp_seq=2 ttl=55 time=9.77 ms
+
+这样eth0通过192.168.1.1可以上公网，局域网网络中的都通过192.168.1.250作为网关上公网。
+
+
+*******************************************************************
+网上参考设置：
+外网IP:192.168.21.160   eth0
+内网IP:192.168.237.160  eth1
+
+2、设置防火墙端口转发规则
+   iptables -t nat -A PREROUTING -i eth1 -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 3128  #开启端口转发功能，把内网eth1的80端口转发到外网eth0的3128端口
+   iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE  #开启外网eth0的NAT网络地址转换功能
+   service iptables save  #保存规则
+   /etc/init.d/iptables restart  #重启防火墙
+*******************************************************************
+自己使用的配置：
+外网IP:192.168.1.250   eth0
+内网IP:192.168.3.250   eth1
+
+2、设置防火墙端口转发规则
+service iptables status
+iptables -t nat -A PREROUTING -i eth1 -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 3128  #开启端口转发功能，把eth1的80端口转发到3128端口
+iptables -t nat -A PREROUTING -i eth0 -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 3128	#开启端口转发功能，把eth0的80端口转发到3128端口
+
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE  #开启外网eth3的NAT网络地址转换功能
+service iptables save  #保存规则
+/etc/init.d/iptables restart  #重启防火墙
+service iptables status
+
+   
+*******************************************************************
+
+
+1、安装Squid
+# yum install squid   	#安装(Squid 3.1.10)
+
+# chkconfig squid on  	#设置开机启动
+
+2、配置Squid 
+#mkdir -p /home/squid/{cache,log,deny}
+#chown squid.squid -R /home/squid/
+
+#cp /etc/squid/squid.conf /etc/squid/squid.confbak  #备份
+#vi  /etc/squid/squid.conf  #编辑文件
+	http_access allow all		--把deny all改民allow all
+	cache_dir ufs /home/squid/cache 4096 16 256	--把缓存目录这一句打开注释，并且修改100为256
+	http_port 3128 transparent
+
+	
+	
+#限制同一IP客户端的最大连接数
+acl OverConnLimit maxconn 128
+http_access deny OverConnLimit	
+
+
+#SpeedControl限速控制，800000=800kb/s(这个值自己测的不知是否准确)
+#acl all src 0.0.0.0/0.0.0.0  #这是因为在3。0版本后默认支持all了，所以不需要加acl all src 0.0.0.0/0.0.0.0，注释掉这行后正常
+delay_pools 1
+delay_class 1 1
+delay_access 1 allow all
+delay_parameters 1 800000/800000
+
+# DNS服务器，优先级比 '/etc/resolv.conf' 更高
+dns_nameservers 114.114.114.114 8.8.8.8
+
+
+squid -z #创建缓冲区目录 
+squidclient -p 3128 mgr:info #运行状态信息 
+
+squidclient -p 3128 -h localhost mgr:info
+squidclient -p 3128 -h 172.0.0.1 mgr:info
+
+squidclient -p 3128 -h 172.0.0.1 mgr:mem
+
+
+
+http_port 3128 transparent
+cache_mem 1024 MB
+cache_dir ufs /home/squid/cache 4096 16 256
+cache_effective_user squid  #设置用户
+cache_effective_group squid  #设置用户组
+access_log /home/squid/log/access.log   #设置访问日志文件
+cache_log /home/squid/log/cache.log     #设置缓存日志文件
+cache_store_log /home/squid/log/store.log  #设置缓存记录文件
+visible_hostname cdn.abc.com  #设置squid服务器主机名
+cache_mgr lingvven@163.com
+acl all src 0.0.0.0/0.0.0.0  #设置访问控制列表，默认开启
+http_access allow all
+ acl client dstdomain -i www.abc.com    #找到TAG: acl标签，在其最后添加下面内容
+http_access deny client  #禁止所有客户机访问www.abc.com域名
+ acl client131 src 192.168.237.131  #禁止IP地址为192.168.237.131的客户机访问外网
+http_access deny client131
+ acl client129 dst 192.168.237.129  #禁止所有用户访问IP地址为192.168.237.129的网站
+http_access deny client129
+ acl client163 url_regex -i 163.com  #禁止所有用户访问域名中包含有163.com的网站
+http_access deny client163
+ acl clientdate src 192.168.237.0/255.255.255.0  #禁止这个网段所有的客户机在周一到周五的18:00-21:00上网
+acl worktime time MTWHF 18:00-21:00
+ http_access deny clientdate worktime
+ acl clientxiazai urlpath_regex -i \.mp3$  \.exe$  \.zip$  \.rar$
+ http_access deny clientxiazai  #禁止客户机下载*.mp3、*.exe、*.zip和*.rar类型的文件
+ 
+service squid stop  #停止
+service squid reload  
+/usr/sbin/squid  -z    #初始化cache缓存目录
+service squid start    #启动
+service squid restart  #重启
+
+squid -z 初始化缓存空间
+squid -k shutdown 停止
+squid -k parse	配置检查
+#squid -k reconfigure  应用更改后的配置（不必重启squid）
+
+
+
+squid  里的 ACL   访问控制列表
+
+acl denyip src  192.168.1.129/32	--拒绝内网的192.168.1.129/32上网
+http_access deny denyip
+
+acl denyip src 192.168.1.129-192.168.1.132/255.255.255.255
+http_access deny denyip
+
+acl vip  arp  00:0C:29:79:0C:1A
+http_access allow  vip
+
+acl  baddsturl2  dst   220.11.22.33  --不能访问这个外网IP的网站
+http_access deny baddsturl2
+
+acl  baddsturl  dstdomain -i  www.163.com  --不能访问www.163.com和WWW.163.COM；-i参数定义大小写都匹配；  但是可以访问war.163.com或sports.163.com
+http_access deny baddsturl
+
+acl  baddsturl  dstdom_regex -i  163	--这是把163以下的所有域名都禁止  ，但直接使用IP仍然是可以访问的
+http_access deny   baddsturl
+
+acl  baddsturl  dstdom_regex "/etc/squid/baddsturl"  --如果网址太多，可以写成一个文件，然后在这个文件里一行一个网站写上你要禁止的
+http_access deny baddsturl
+
+acl baddsturl3  url_regex  -i  baidu   --拒绝访问url里有baidu这个关键字的网站
+http_access deny baddsturl3
+
+acl badfile  urlpath_regex -i \.mp3$ \.rmvb$ \.exe$ \.zip$ \.mp4$ \.avi$  \.rar$
+http_access deny badfile	--禁止下载带有定义后缀名的文件
+
+acl badipclient2  src 192.168.1.0/255.255.255.0
+acl worktime time  MTWHF 9:00-17:00
+http_access deny badipclient2 worktime  --拒绝192.168.1.0网段工作时间不能上网
+
+acl badipclient3  src 192.168.1.128
+acl conn5  maxconn  5
+http_access deny badipclient3 conn5	--最大连接数为5
+
+实现如下要求：
+	1，允许周一到周五12：00-14：00和17:30-21：00和双休能上网，别的时间不能上网
+	2，禁止下载.exe  .rar  .mp3  .avi   .rmvb .mp4后缀的文件
+	3，禁止访问qq.com,mop.com,sina.com,163.com,youku.com
+	4，禁止访问网址中包含某些关键字的网站：比如 sex  news  movie sport game stock
+	5, vip没有任何限制
+
+acl lunchtime time MTWHF 12:00-14:00
+acl dinnertime time MTWHF 17:30-21:00
+acl weekend time SA 00:00-24:00
+acl badfile urlpath_regex -i \.mp3$ \.rmvb$ \.exe$ \.zip$ \.mp4$ \.avi$  \.rar$
+acl badweb  dstdom_regex "/etc/squid/denywebsite"
+acl badword  url_regex  -i sex news movie sport game stock
+acl vip arp 00:0C:29:79:0C:1A 
+
+vim /etc/squid/denywebsite
+qq
+sina
+mop
+163
+youku
+
+--把上面五点情况做成两种需求：
+1，上课时间不能上任何网站，休息时间可以上网，但受限
+2，上课时间可以上网，但受限，休息时间可以无限制上网
+实现需求一:
+http_access allow vip
+http_access deny badfile
+http_access deny badweb
+http_access deny badword
+http_access allow lunchtime
+http_access allow dinnertime
+http_access allow weekend
+http_access deny all
+
+实现需求二:
+http_access allow vip
+http_access allow weekend
+http_access allow lunchtime
+http_access allow dinnertime
+http_access deny badfile
+http_access deny badweb
+http_access deny badword
+http_access allow all
+
+
+#############缓存设置####################
+cache_mem 1024 MB	#设置squid可以使用的内存大小
+cache_swap_low 90	#缓存内部对象的替换的衡量基线
+cache_swap_high 95	#缓存内部对象替换的最高程度
+maximum_object_size 32768 KB	#设置squid磁盘缓存最大文件
+maximum_object_size_in_memory 1024 KB	#设置squid内存缓存最大文件
+cache_replacement_policy lru	#设置squid磁盘替换策略:最少近来使用（LRU），贪婪对偶大小次数（GDSF），和动态衰老最少经常使用（LFUDA)
+memory_replacement_policy lru	#设置squid内存替换策略:最少近来使用（LRU），贪婪对偶大小次数（GDSF），和动态衰老最少经常使用（LFUDA) 
+cache_dir aufs /data/squid/cache 4096MB 32 128	#设置squid磁盘缓存存放路径方式大小等cache_dir scheme directory size L1 L2 [options]
+
+
+
+
+参考：
+ 1.配置Squid透明代理服务器，使局域网内客户机通过代理服务器上网
+ http://www.osyunwei.com/archives/1204.html  
+ 
+ 2.CentOS 6.4下Squid代理服务器的安装与配置 
+ http://www.cnblogs.com/mchina/p/3812190.html
+ 
+ 3.简单的squid配置与限速系统 
+ http://rfyiamcool.blog.51cto.com/1030776/419942
+ 
