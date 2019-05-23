@@ -1,0 +1,102 @@
+[root@localhost ~]# whereis phpize
+phpize:
+安装phpize：
+[root@localhost ~]# which phpize
+/usr/bin/which: no phpize in (/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin)
+
+[root@localhost zendopcache-7.0.3]# whereis phpize
+phpize: /usr/bin/phpize /usr/share/man/man1/phpize.1.gz
+
+
+
+wget http://pecl.php.net/get/zendopcache-7.0.3.tgz
+tar -zxf zendopcache-7.0.3.tgz
+cd zendopcache-7.0.3
+/usr/bin/phpize
+./configure --with-php-config=/usr/bin/php-config
+make
+make install
+
+报错：
+configure: error: Cannot find php-config. Please use --with-php-config=PATH
+一般出现这个错误说明你执行 ./configure 时  --with-php-config 这个参数配置路径错误导致的。
+查找:
+find / -name  php-config
+修改为：
+./configure --with-php-config=/usr/local/php/bin/php-config就可以解决问题上面的 /usr/local/php/ 是你的 php 安装路径
+http://www.android100.org/html/201407/27/47106.html
+
+
+[root@localhost zendopcache-7.0.3]# make install
+Installing shared extensions:     /usr/lib64/php/modules/
+
+[root@localhost bin]# php -v
+PHP 5.3.3 (cli) (built: May 10 2016 21:39:50) 
+Copyright (c) 1997-2010 The PHP Group
+Zend Engine v2.3.0, Copyright (c) 1998-2010 Zend Technologies
+
+用ab压力测试软件测试：
+ab -n 1000 -c 400 http://www.test2.cc/php/phpinfo.php
+Time taken for tests:   3.270 seconds
+
+ab -n 2000 -c 1000 http://www.test2.cc/php/phpinfo.php
+Time taken for tests:   7.297 seconds
+
+添加以下配置
+
+vi /data/conf/php.ini
+zend_extension = "/usr/lib64/php/modules/opcache.so"
+opcache.force_restart_timeout=3600
+opcache.memory_consumption=1024
+opcache.optimization_level=1
+opcache.interned_strings_buffer=8
+opcache.max_accelerated_files=4096
+opcache.revalidate_freq=60
+opcache.fast_shutdown=1
+opcache.enable=1
+opcache.enable_cli=1
+
+下面这段是官方推荐的配置参数，可以更加提升性能，建议使用：
+zend_extension = "/usr/lib64/php/modules/opcache.so" 【根据实际情况填写】
+opcache.memory_consumption=128
+opcache.interned_strings_buffer=8
+opcache.max_accelerated_files=4000
+opcache.revalidate_freq=60
+opcache.fast_shutdown=1
+opcache.enable_cli=1
+
+
+
+[root@localhost modules]# php -v
+PHP 5.3.3 (cli) (built: May 10 2016 21:39:50) 
+Copyright (c) 1997-2010 The PHP Group
+Zend Engine v2.3.0, Copyright (c) 1998-2010 Zend Technologies
+    with Zend OPcache v7.0.3, Copyright (c) 1999-2014, by Zend Technologies
+
+再用ab压力测试软件测试：
+ab -n 1000 -c 400 http://www.test2.cc/php/phpinfo.php
+ab -n 2000 -c 1000 http://www.test2.cc/php/phpinfo.php
+测试时间并没有明显减少、效果并不明显。
+	
+	
+	
+参考：
+http://www.x86pro.com/article/centos-64bit-nginx-php-fastcgi-opcache-mariadb
+http://www.linuxde.net/2013/07/14698.html	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

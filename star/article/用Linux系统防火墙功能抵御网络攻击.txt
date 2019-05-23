@@ -1,0 +1,228 @@
+用Linux系统防火墙功能抵御网络攻击
+
+虚拟主机服务商在运营过程中可能会受到黑客攻击，常见的攻击方式有SYN，DDOS等。
+通过更换IP，查找被攻击的站点可能避开攻击，但是中断服务的时间比较长。比较彻底
+的解决方法是添置硬件防火墙。不过，硬件防火墙价格比较昂贵。可以考虑利用Linux
+系统本身提供的防火墙功能来防御。
+
+1. 抵御SYN
+SYN攻击是利用TCP/IP协议3次握手的原理，发送大量的建立连接的网络包，但不实际
+建立连接，最终导致被攻击服务器的网络队列被占满，无法被正常用户访问。
+Linux内核提供了若干SYN相关的配置，用命令：
+sysctl -a | grep syn
+看到：
+net.ipv4.tcp_max_syn_backlog = 1024
+net.ipv4.tcp_syncookies = 0
+net.ipv4.tcp_synack_retries = 5
+net.ipv4.tcp_syn_retries = 5
+
+tcp_max_syn_backlog是SYN队列的长度，tcp_syncookies是一个开关，是否打开SYN Cookie
+功能，该功能可以防止部分SYN攻击。tcp_synack_retries和tcp_syn_retries定义SYN
+的重试次数。
+
+加大SYN队列长度可以容纳更多等待连接的网络连接数，打开SYN Cookie功能可以阻止部分
+SYN攻击，降低重试次数也有一定效果。
+
+调整上述设置的方法是：
+增加SYN队列长度到2048：
+sysctl -w net.ipv4.tcp_max_syn_backlog=2048
+打开SYN COOKIE功能：
+sysctl -w net.ipv4.tcp_syncookies=1
+降低重试次数：
+sysctl -w net.ipv4.tcp_synack_retries=3
+sysctl -w net.ipv4.tcp_syn_retries=3
+
+为了系统重启动时保持上述配置，可将上述命令加入到/etc/rc.d/rc.local文件中。
+
+2. 抵御DDOS
+DDOS，分布式拒绝访问攻击，是指黑客组织来自不同来源的许多主机，向常见的端口，如80，
+25等发送大量连接，但这些客户端只建立连接，不是正常访问。由于一般Apache配置的接受连接
+数有限（通常为256），这些“假” 访问会把Apache占满，正常访问无法进行。
+
+Linux提供了叫ipchains的防火墙工具，可以屏蔽来自特定IP或IP地址段的对特定端口的连接。
+使用ipchains抵御DDOS，就是首先通过netstat命令发现攻击来源地址，然后用ipchains命令阻断
+攻击。发现一个阻断一个。
+
+*** 打开ipchains功能
+首先查看ipchains服务是否设为自动启动：
+chkconfig --list ipchains
+输出一般为：
+ipchains        0:off   1:off   2:on    3:on    4:on    5:on    6:off
+如果345列为on，说明ipchains服务已经设为自动启动
+如果没有，可以用命令：
+chkconfig --add ipchains
+将ipchains服务设为自动启动
+其次，察看ipchains配置文件/etc/sysconfig/ipchains是否存在。如果这一文件不存在，ipchains
+即使设为自动启动，也不会生效。缺省的ipchains配置文件内容如下：
+
+# Firewall configuration written by lokkit
+# Manual customization of this file is not recommended.
+# Note: ifup-post will punch the current nameservers through the
+#       firewall; such entries will *not* be listed here.
+:input ACCEPT
+:forward ACCEPT
+:output ACCEPT
+-A input -s 0/0 -d 0/0 -i lo -j ACCEPT
+# allow http,ftp,smtp,ssh,domain via tcp; domain via udp
+-A input -p tcp -s 0/0 -d 0/0 pop3 -y -j ACCEPT
+-A input -p tcp -s 0/0 -d 0/0 http -y -j ACCEPT
+-A input -p tcp -s 0/0 -d 0/0 https -y -j ACCEPT
+-A input -p tcp -s 0/0 -d 0/0 ftp -y -j ACCEPT
+-A input -p tcp -s 0/0 -d 0/0 smtp -y -j ACCEPT
+-A input -p tcp -s 0/0 -d 0/0 ssh -y -j ACCEPT
+-A input -p tcp -s 0/0 -d 0/0 domain -y -j ACCEPT
+-A input -p udp -s 0/0 -d 0/0 domain -j ACCEPT
+# deny icmp packet
+#-A input -p icmp -s 0/0 -d 0/0 -j DENY
+# default rules
+-A input -p tcp -s 0/0 -d 0/0 0:1023 -y -j REJECT
+-A input -p tcp -s 0/0 -d 0/0 2049 -y -j REJECT
+-A input -p udp -s 0/0 -d 0/0 0:1023 -j REJECT
+-A input -p udp -s 0/0 -d 0/0 2049 -j REJECT
+-A input -p tcp -s 0/0 -d 0/0 6000:6009 -y -j REJECT
+-A input -p tcp -s 0/0 -d 0/0 7100 -y -j REJECT
+
+如果/etc/sysconfig/ipchains文件不存在，可以用上述内容创建之。创建之后，启动ipchains服务：
+/etc/init.d/ipchains start
+
+*** 用netstat命令发现攻击来源
+假如说黑客攻击的是Web 80端口，察看连接80端口的客户端IP和端口，命令如下：
+netstat -an -t tcp | grep ":80" | grep ESTABLISHED | awk '{printf "%s %s\n",$5,$6}' | sort
+输出：
+161.2.8.9:123 FIN_WAIT2
+161.2.8.9:124 FIN_WAIT2
+61.233.85.253:23656 FIN_WAIT2
+...
+第一栏是客户机IP和端口，第二栏是连接状态
+如果来自同一IP的连接很多（超过50个），而且都是连续端口，就很可能是攻击。
+如果只希望察看建立的连接，用命令：
+netstat -an -t tcp | grep ":80" | grep ESTABLISHED | awk '{printf "%s %s\n",$5,$6}' | sort
+
+*** 用ipchains阻断攻击来源
+用ipchains阻断攻击来源，有两种方法。一种是加入到/etc/sysconfig/ipchains里，然后重启动
+ipchains服务。另一种是直接用ipchains命令加。屏蔽之后，可能还需要重新启动被攻击的服务，
+是已经建立的攻击连接失效
+
+* 加入/etc/sysconfig/ipchains
+假定要阻止的是218.202.8.151到80的连接，编辑/etc/sysconfig/ipchains文件，在:output ACCEPT
+行下面加入：
+-A input -s 218.202.8.151 -d 0/0 http -y -j REJECT
+保存修改，重新启动ipchains：
+/etc/init.d/ipchains restart
+如果要阻止的是218.202.8的整个网段，加入：
+-A input -s 218.202.8.0/255.255.255.0 -d 0/0 http -y -j REJECT
+
+* 直接用命令行
+加入/etc/sysconfig/ipchains文件并重起ipchains的方法，比较慢，而且在ipchains重起的瞬间，
+可能会有部分连接钻进来。最方便的方法是直接用ipchains命令。
+假定要阻止的是218.202.8.151到80的连接，命令：
+ipchains -I input 1 -p tcp -s 218.202.8.151 -d 0/0 http -y -j REJECT
+如果要阻止的是218.202.8的整个网段，命令：
+ipchains -I input 1 -p tcp -s 218.202.8.0/255.255.255.0 -d 0/0 http -y -j REJECT
+其中，-I的意思是插入，input是规则连，1是指加入到第一个。
+
+您可以编辑一个shell脚本，更方便地做这件事，命令：
+vi blockit
+内容：
+#!/bin/sh
+if [ ! -z "$1" ] ; then
+  echo "Blocking: $1"
+  ipchains -I input 1 -p tcp -s "$1" -d 0/0 http -y -j REJECT
+else
+  echo "which ip to block?"
+fi
+保存，然后：
+chmod 700 blockit
+使用方法：
+./blockit 218.202.8.151
+./blockit 218.202.8.0/255.255.255.0
+
+上述命令行方法所建立的规则，在重起之后会失效，您可以用ipchains-save命令打印规则:
+ipchains-save
+输出：
+:input ACCEPT
+:forward ACCEPT
+:output ACCEPT
+Saving `input'.
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 -i lo -j ACCEPT
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 110:110 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 80:80 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 22:22 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 88:88 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 89:89 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 90:90 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 91:91 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 8180:8180 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 443:443 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 21:21 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 25:25 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 22:22 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 53:53 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 9095:9095 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 8007:8007 -p 6 -j ACCEPT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 53:53 -p 17 -j ACCEPT
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 0:1023 -p 6 -j REJECT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 2049:2049 -p 6 -j REJECT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 0:1023 -p 17 -j REJECT
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 2049:2049 -p 17 -j REJECT
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 6000:6009 -p 6 -j REJECT -y
+-A input -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 7100:7100 -p 6 -j REJECT -y
+您需要把其中的"Saving `input'."去掉，然后把其他内容保存到/etc/sysconfig/ipchains文件，
+这样，下次重起之后，建立的规则能够重新生效。
+
+3. 如果使用iptables
+RH 8.0以上开始启用iptables替代ipchains，两者非常类似，也有差别的地方。
+* 启用iptables
+如果/etc/sysconfig/下没有iptables文件，可以创建：
+# Firewall configuration written by lokkit
+# Manual customization of this file is not recommended.
+# Note: ifup-post will punch the current nameservers through the
+#       firewall; such entries will *not* be listed here.
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:RH-Lokkit-0-50-INPUT - [0:0]
+-A INPUT -j RH-Lokkit-0-50-INPUT
+-A RH-Lokkit-0-50-INPUT -i lo -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport ftp -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport ssh -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport http -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport smtp -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport pop3 -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport mysql -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport 2001 -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport domain -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p udp -m udp --dport domain -j ACCEPT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport 0:1023 --syn -j REJECT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport 2049 --syn -j REJECT
+-A RH-Lokkit-0-50-INPUT -p udp -m udp --dport 0:1023 -j REJECT
+-A RH-Lokkit-0-50-INPUT -p udp -m udp --dport 2049 -j REJECT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport 6000:6009 --syn -j REJECT
+-A RH-Lokkit-0-50-INPUT -p tcp -m tcp --dport 7100 --syn -j REJECT
+COMMIT
+以上配置允许了ftp, ssh, http, smtp, pop3, mysql, 2001(Prim@Hosting ACA端口)，domain端口。
+
+* 启动iptables
+/etc/init.d/iptables start
+
+* 设置iptables为自动启动
+chkconfig --level 2345 iptables on
+
+* 用iptables屏蔽IP
+iptables -I RH-Lokkit-0-50-INPUT 1 -p tcp -m tcp -s 213.8.166.227 --dport 80 --syn -j REJECT
+注意到，和ipchains的区别是：
+-I 后面跟的规则名称的参数和ipchains不同，不是统一的input，而是在/etc/sysconfig/iptables里定义的那个
+多了-m tcp
+指定端口的参数是--dport 80
+多了--syn参数，可以自动检测sync攻击
+
+使用iptables禁止ping：
+-A INPUT -p icmp -m icmp --icmp-type 8 -m limit --limit 6/min --limit-burst 2 -j ACCEPT
+-A INPUT -p icmp -m icmp --icmp-type 8 -j REJECT --reject-with icmp-port-unreachable
+
+允许某ip连接
+-I RH-Firewall-1-INPUT 1 -p tcp -m tcp -s 192.168.0.51 --syn -j ACCEPT
+
+转载：http://www.parallels.com.cn/support.php?x=&mod_id=2&root=77&id=38
+

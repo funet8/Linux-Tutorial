@@ -1,0 +1,175 @@
+
+cc攻击：
+http://baike.baidu.com/link?url=cpzqe8H3dMweD8-fuVIQzuUZLc6mCiGV0SHLUp_Mk09r-gg2YLuMYuwLiBx1lwpAp0YgeOiAOIVwscVXzDjmpa
+百度百科定义：攻击者借助代理服务器生成指向受害主机的合法请求，实现DDOS和伪装就叫：CC(ChallengeCollapsar)。
+
+DDOS-分布式拒绝服务攻击
+https://baike.baidu.com/item/%E5%88%86%E5%B8%83%E5%BC%8F%E6%8B%92%E7%BB%9D%E6%9C%8D%E5%8A%A1%E6%94%BB%E5%87%BB?fromtitle=DDOS%E6%94%BB%E5%87%BB&fromid=177090
+
+百度百科定义：分布式拒绝服务(DDoS:Distributed Denial of Service)攻击指借助于客户/服务器技术，将多个计算机联合起来作为攻击平台，对一个或多个目标发动DDoS攻击，从而成倍地提高拒绝服务攻击的威力。通常，攻击者使用一个偷窃帐号将DDoS主控程序安装在一个计算机上，在一个设定的时间主控程序将与大量代理程序通讯，代理程序已经被安装在网络上的许多计算机上。代理程序收到指令时就发动攻击。利用客户/服务器技术，主控程序能在几秒钟内激活成百上千次代理程序的运行。
+
+
+
+
+
+
+
+
+
+
+
+CC攻击和DDOS攻击有什么区别
+
+最明确的区别就是，虽然它们攻击的类型不同，但是CC攻击和DDOS的都属于同一种类型，因为它们的设计思想是一样的，它的诞生是利用TCP/IP 协议的缺陷。好了，那么我们，先来说说它们的原理
+
+DDOS攻击又称“分布式攻击”，它使用非法数据淹没网络链路，这些数据可能淹没Internet链路，导致合法数据流被丢弃，DDOS攻击比旧时代的DOS（拒绝服务）更可怕，规模极大，通常他们是以几百台机子或甚至几万台以上的机子进行以点试图掩没攻击为目标，使目标机子在1分钟内变成瘫痪现象，一下子接受那么多数据包，它就算是台巨型机的速度，也不能达到一下子处理几千台或几万台机子攻击目标的现象啊，相同，洪水攻击也是这类攻击的一种.....
+[补充2点：1、DDOS攻击不仅能攻击计算机，还能攻击路由器，因为路由器是一台特殊类型的计算机；
+2、网速决定攻击的好和快，比如说，如果你一个被限制网速的环境下，它们的攻击效果不是很明显，但是快的网速相比之下更具有效果]
+
+CC攻击它的隐藏性非常强，不管是它的IP还是它的流量，隐藏性都非常高，它的原理是以主页为主要攻击类型（后期还可以加代理性攻击手法），攻击手法是以论坛的用户为这一特点，进行模拟似的攻击。
+现在你知道它们的的不同之处只是类型的不同而已，相比之下，CC攻击更为主流攻击，对吧！
+CC攻击主要是网页攻击，而DDOS攻击是进行发送大量的数据包给目标，造成目标机子瘫痪。
+一句话总结：CC攻击和DDOS攻击的主要是针对 WEB 应用程序比较消耗资源的地方进行疯狂请求，就是这样了。
+
+
+DDOS攻击原理是我生成一个DDOS客户端 在网络上散播，等人家打开后 当然不只一台电脑，我可以用我的客户端一个命令让所有被我植入控制端的电脑向一个网站发送访问请求，比如我有几百万太电脑被我控制 如果每台电脑发送一个访问请求 网站如果处理不过来会瘫痪 
+CC攻击呢可以只使用一台电脑 然后用代理进行攻击。
+
+
+
+
+SYN攻击 是利用TCP/IP协议3次握手的原理，发送大量的建立连接的网络包，但不实际建立连接，最终导致被攻击服务器的网络队列被占满，无法被正常用户访问。
+
+SYN_RECV 是指,服务端被动打开后,接收到了客户端的SYN并且发送了ACK时的状态。再进一步接收到客户端的ACK就进入ESTABLISHED状态。
+
+http://czmmiao.iteye.com/blog/1616837
+
+netstat -ntu | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -n 
+
+
+
+
+
+https://yq.aliyun.com/articles/55976?spm=5176.100238.goodcont.22.NbIMaH
+
+防护特定的UA
+
+以Nginx为例，首先当怀疑网站被CC攻击时，可以粗略tail一下log文件，看看有没有满屏的“pingback”出现，也可以用
+cat /var/log/nginx/access.log | grep "verifying pingback from" > pingback_attack.log
+
+if ($http_user_agent ~ (WordPress|pingback) {
+        return 403;
+}
+
+service nginx restart
+
+
+Nginx简单防御CC攻击
+https://bbs.aliyun.com/read/50817.html?spm=5176.bbsr135619.0.0.WeO4xK
+
+
+
+1)封IP地址 
+访问者通过浏览器正常访问网站，与服务器建立的连接一般不会超过20个，我们可以通过脚本禁止连接数过大的IP访问。 
+以下脚本通过netstat命令列举所有连接，将连接数最高的一个IP如果连接数超过150，则通过 iptables阻止访问： 
+#!/bin/sh 
+status=`netstat -na|awk '$5 ~ /[0-9]+:[0-9]+/ {print $5}' |awk -F ":" -- '{print $1}' |sort -n|uniq -c |sort -n|tail -n 1` 
+NUM=`echo $status|awk '{print $1}'` 
+IP=`echo $status|awk '{print $2}'` 
+result=`echo "$NUM > 150" | bc` 
+if [ $result = 1 ] 
+then 
+echo IP:$IP is over $NUM, BAN IT! 
+/sbin/iptables -I INPUT -s $IP -j DROP 
+fi 
+运行crontab -e，将上述脚本添加到crontab每分钟自动运行： 
+* * * * * /root/xxxx.sh 
+
+
+
+浅析如何防御CC攻击[Discuz论坛防护]
+http://netsecurity.51cto.com/art/201009/225560.htm
+
+配置文件 config.inc.php
+
+$attackevasive = 0;  // 论坛防御级别，可防止大量的非正常请求造成的拒绝服务攻击
+
+// 防护大量正常请求造成的拒绝服务攻击
+
+// 0=关闭, 1=cookie 刷新限制, 2=限制代理访问, 4=二次请求, 8=回答问题（第一次访问时需要回答问题）
+
+// 组合为: 1|2, 1|4, 2|8, 1|2|4...
+ 
+
+正常情况下设置为 0，在遭到攻击时，分析其攻击手法和规律，组合使用。可以尝试先设置为 2， 2|4， 1|2|4|， 1|2|4|8， 如果 1|2|4|8 还不行，我们认为应用程序层面上已经抵挡不住，可能主机遭受的攻击来自于僵尸网络的 DDOS 攻击了，我们建议您从防火墙策略上入手。
+
+《服务器遭受攻击后 该如何有效地处理?》
+http://netsecurity.51cto.com/art/201608/515574.htm
+
+
+
+
+【技术干货】浏览器工作原理和常见WEB攻击
+https://bbs.aliyun.com/read/285939.html
+https://bbs.aliyun.com/read/286071.html
+
+
+互联网是个面向全世界的开放平台，越是开放的东西漏洞就越是多。有人曾维护了一个列表，上面有上百种的WEB攻击方式。
+我们常见的有：脚本注入、SQL注入、DDoS、DNS劫持、端口漏洞扫描、密码暴力破解、XSS、CSRF等。这里只挑一些常见的攻击做个介绍：
+
+
+
+
+如何限制百度等蜘蛛的抓取频率？
+
+nginx的ngx_http_limit_req_module模块限制了百度蜘蛛的抓取频率。每分钟允许百度蜘蛛抓取200次，多余的抓取请求返回503。
+nginx的配置：
+
+全局配置
+
+limit_req_zone $anti_spider zone=anti_spider:60m rate=200r/m;
+
+某个server中
+
+limit_req zone=anti_spider burst=5 nodelay;
+ if ($http_user_agent ~* "baiduspider") {
+ set $anti_spider $http_user_agent;
+ }
+
+参数说明：
+ 指令limit_req_zone 中的rate=200r/m 表示每分钟只能处理200个请求。
+ 指令limit_req 中的burst=5 表示最大并发为5。即同一时间只能同时处理5个请求。
+ 指令limit_req 中的 nodelay 表示当已经达到burst值时，再来新请求时，直接返回503
+ IF部分用于判断是否是百度蜘蛛的user agent。如果是，就对变量$anti_spider赋值。这样就做到了只对百度蜘蛛进行限制了。
+
+
+ 
+如果遇上网络攻击 你需要做的事
+http://www.liaoxiansheng.cn/?p=445
+
+
+
+网络流量劫持危害有多大？继续解密黑客巧妙神奇的“离线”入侵手段
+http://www.iplaysoft.com/traffic-hijack-1.html
+http://www.iplaysoft.com/traffic-hijack-2.html
+
+
+随着DDOS攻击在互联网上的肆虐泛滥，使得DDOS的防范工作变得更加困难。
+那么，广大的网站用户应该采取怎样的措施进行有效的防御呢?下面我就介绍一下防御DDoS的基本方法。
+　　1、隐藏服务器真实IP
+　　服务器前端加CDN中转(免费的有百度云加速、360网站卫士、加速乐、安全宝等)，如果资金充裕的话，可以购买高防的盾机，用于隐藏服务器真实IP，域名解析使用CDN的IP，所有解析的子域名都使用CDN的IP地址。此外，服务器上部署的其他域名也不能使用真实IP解析，全部都使用CDN来解析。
+　　另外，防止服务器对外传送信息泄漏IP，最常见的是，服务器不使用发送邮件功能，如果非要发送邮件，可以通过第三方代理(例如sendcloud)发送，这样对外显示的IP是代理的IP。
+　　2、保证服务器系统的安全
+　　首先要确保服务器软件没有任何漏洞，防止攻击者入侵。确保服务器采用最新系统，并打上安全补丁。在服务器上删除未使用的服务，关闭未使用的端口。对于服务器上运行的网站，确保其打了最新的补丁，没有安全漏洞。
+　　3、定期备份数据
+　　用磁带来保存珍贵的数据，但是数据备份也存在巨大的安全漏洞，所以在备份时也应该对备份介质进行有效地保护。
+　　4、加强服务器本地文件格式安全级别
+
+
+
+
+
+
+
+
+

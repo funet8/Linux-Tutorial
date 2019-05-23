@@ -24,6 +24,21 @@ Centos6或者Centos7下安装
 - [《破坏之王》读书笔记](star/read_notes_king_destruction/)
 - [【云栖公开课】网络安全课程-截图](star/read_notes_security_course/)
 - [安装nagios监控服务器](star/nagios/)
+- [用ab压力测试](star/pressure/)
+- [《Linux集群和自动化运维》读书笔记](star/read_notes_automation/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- [文章](star/article/)
+- 
+
 
 
 
