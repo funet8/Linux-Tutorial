@@ -1,0 +1,13 @@
+7477.sh 为要运行网站实时同步脚本
+其中定义了要同步的网站的路径，要同步到的ip地址，哪些后缀名的文件忽略监控，同步的用户名，同步的文件列表，哪些文件不需要同步。
+
+只需要把7477.sh这个文件上传到服务器上并且更改所有者为www，然后加上x的权限，运行即可
+cd /data/conf/shell/inotify_rsync/
+chown www:www 7477.sh 7477_inotify_exclude.list 7477_rsync_include.list 7477_inotify_exclude.list
+chmod u+x 7477.sh 
+su -l www
+cd /data/conf/shell/inotify_rsync/
+nohup ./7477.sh &
+
+
+7477_inotify_exclude 中@是忽略不需要同步的文件夹。

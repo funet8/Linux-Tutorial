@@ -1,46 +1,49 @@
 # 关于项目
 整理日常linux教程
 目录：star
+
 ## 环境说明
 本教程主要环境在
-Centos6或者Centos7下安装
+系统：Centos6或Centos7
 
 ## 目录(Contents)
-### 基本服务与操作
+
+### 基本操作
+- [vi基本操作](star/vi/)
+- [李明老师讲Linux笔记](star/Li_teacher_speak_Linux_notes/)
+- [Linux内核TCP参数优化设置](star/Linux_kernel/)
+- [parted分区-分区超过2T的硬盘](star/Parted_partition_2T/)
+- [判断虚拟机使用的是openvz、xen、kvm](star/use_openvz_xen_kvm/)
+- [Linux服务器配置SSH免密码登陆](star/SSH_no_password/)
+
+### LAMNP网站WEB相关
+- [Linux服务器配置SSH免密码登陆](star/CentOS_lnamp/)
+- [LVS+keepalived实现负载均衡](star/LVS_keepalived/)
+- [inotify+rsync文件实时同步](star/inotify_rsync/)
+- [安装MYSQL并且设置主从](star/mysql_master_slave/)
+
+ 
+### 基本服务
 - [Centos安装swoole](star/centos_install_swoole/)
 - [Centos安装postfix-邮件服务器](star/centos_install_postfix/)
 - [Centos安装postfix-git_svn版本控制软件](star/centos_install_git_svn/)
-- [李明老师讲Linux笔记](star/Li_teacher_speak_Linux_notes/)
-- [判断虚拟机使用的是openvz、xen、kvm](star/use_openvz_xen_kvm/)
-- [Linux服务器配置SSH免密码登陆](star/SSH_no_password/)
 - [centos-mail发送邮件](star/centos_install_postfix/)
 - [centos-samba局域网共享](star/centos_samba/)
 - [GoAccess-nginx日志分析工具](star/GoAccess_ngin_log/)
-- [Linux内核TCP参数优化设置](star/Linux_kernel/)
-- [parted分区-分区超过2T的硬盘](star/Parted_partition_2T/)
-- [vi基本操作](star/vi/)
 - [Centos安装memcached](star/centos_install_memcached/)
-- [使用iptables来实现SNAT转发，可以让无公网IP的服务器与公网通信](star/iptables_snat/)
 - [Let's Encrypt免费SSL证书](star/Certbot_certificate/)
 - [安装nagios监控服务器](star/nagios/)
 - [用ab压力测试](star/pressure/)
 - [squid实现正向代理和反向搭理,varnish](star/squid_varnish/)
 
+### 网络
+- [使用iptables来实现SNAT转发，可以让无公网IP的服务器与公网通信](star/iptables_snat/)
+
 ### 读书笔记
 - [读书笔记-《破坏之王》](star/read_notes_king_destruction/)
-- [【云栖公开课】网络安全课程-截图](star/read_notes_security_course/)
+- [读书笔记-【云栖公开课】网络安全课程-截图](star/read_notes_security_course/)
 - [读书笔记-《Linux集群和自动化运维》](star/read_notes_automation/)
 - [读书笔记-深入浅出HTTP2 -Akamai](star/read_notes_http2/)
-- [文章](star/article/)
-- [文章](star/article/)
-- [文章](star/article/)
-- [文章](star/article/)
-- [文章](star/article/)
-- [文章](star/article/)
-- [文章](star/article/)
-- [文章](star/article/)
-- [文章](star/article/)
-- 
 
 
 
@@ -81,7 +84,7 @@ Centos6或者Centos7下安装
 - [nmon 系统性能监控工具](markdown-file/Nmon.md)
 - [Glances 安装和配置](markdown-file/Glances-Install-And-Settings.md)
 - [SSH（Secure Shell）介绍](markdown-file/SSH.md)
-- [FTP（File Transfer Protocol）介绍](markdown-file/FTP.md)
+- [（File Transfer Protocol）介绍](markdown-file/FTP.md)
 - [VPN（Virtual Private Network）介绍](markdown-file/VPN.md)
 - [NFS（Network FileSystem）介绍](markdown-file/NFS.md)
 - [NTP（Network Time Protocol）介绍](markdown-file/NTP.md)
