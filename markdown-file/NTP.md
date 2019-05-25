@@ -27,7 +27,7 @@ server 3.centos.pool.ntp.org iburst
 
 - 新增配置：
 
-``` nginx
+```
 ntp1.aliyun.com
 ntp2.aliyun.com
 ntp3.aliyun.com
@@ -36,6 +36,9 @@ ntp5.aliyun.com
 ntp6.aliyun.com
 ntp7.aliyun.com
 ```
+
+
+
 
 - CentOS 6 
 	- 重启 NTP 服务：`sudo service ntpd start`
@@ -58,20 +61,22 @@ ntp7.aliyun.com
 - 标注 1 是默认内容，我们这里进行了注释。
 - 标注 2 是新增内容，表示使用中国时间校对服务器节点地址。
 
-``` nginx
+```
 server 0.cn.pool.ntp.org
 server 1.cn.pool.ntp.org
 server 2.cn.pool.ntp.org
 server 3.cn.pool.ntp.org
 ```
 
+
 - 我的配置如下
- ```
- driftfile  /var/lib/ntp/drift
+```
+driftfile  /var/lib/ntp/drift
 pidfile    /var/run/ntpd.pid
 logfile    /var/log/ntp.log
+```
 
-
+```
 # Access Control Support
 restrict    default kod nomodify notrap nopeer noquery
 restrict -6 default kod nomodify notrap nopeer noquery
