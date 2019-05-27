@@ -44,7 +44,7 @@
 - [读书笔记-【云栖公开课】网络安全课程-截图](star/read_notes_security_course/)
 - [读书笔记-《Linux集群和自动化运维》](star/read_notes_automation/)
 - [读书笔记-深入浅出HTTP2 -Akamai](star/read_notes_http2/)
-
+- [linux运维需要掌握什么知识](star/linux运维需要掌握什么知识.md)
 
 
 

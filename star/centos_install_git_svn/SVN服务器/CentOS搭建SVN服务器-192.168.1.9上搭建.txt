@@ -4,7 +4,7 @@ SVN作为新一代代码版本管理工具，有很多优点，管理方便，�
  
 1.安装subversion
 [root@localhost ~]# yum -y  install  subversion
-[root@localhost home]# mkdir -p /home/svn  				#创建svn目录
+[root@localhost home]# mkdir -p /data/svn  				#创建svn目录
 [root@localhost home]# chmod -R 777 /home/svn  			#修改目录权限为777
 [root@localhost home]# svnadmin create /home/svn/repos    #创建一个svn版本仓库repos （repos 名字自己起）
 [root@localhost home]# cd /home/svn/repos/conf   		    #进入repos版本仓库下的配置文件目录
@@ -19,7 +19,7 @@ SVN作为新一代代码版本管理工具，有很多优点，管理方便，�
 文件内容如下（在touch /var/lock/subsys/local下面添加一行）
  
 #添加：
-svnserve    -d  -r  /home/svn
+svnserve    -d  -r  /data/svn
  
 如图：
 
